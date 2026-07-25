@@ -41,3 +41,44 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+class ProductImage(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="images"
+    )
+
+    image = models.ImageField(upload_to="products/")
+
+    alt_text = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"{self.product.name} Image"
+    
+class ProductSize(models.Model):
+    SIZE_CHOICES = [
+        (40, "40"),
+        (41, "41"),
+        (42, "42"),
+        (43, "43"),
+        (44, "44"),
+        (45, "45"),
+        (46, "46"),
+    ]
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="sizes"
+    )
+
+    size = models.IntegerField(choices=SIZE_CHOICES)
+    stock = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("product", "size")
+        ordering = ["size"]
+
+    def __str__(self):
+        return f"{self.product.name} - Size {self.size}"
