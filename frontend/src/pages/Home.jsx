@@ -7,7 +7,6 @@ function Home({
   products,
   loading,
   filterBrand,
-  addToCart,
 }) {
 
   const navigate = useNavigate();
@@ -191,19 +190,17 @@ function Home({
 
 
                   <button
-                    className="btn btn-outline product-add-btn"
-                    disabled={!shoe.available}
-                    onClick={(e) => {
-                    e.stopPropagation();
-                    addToCart(shoe);
-                    }}
-                  >
-
-                    {shoe.available
-                      ? "Add to Cart"
-                      : "Unavailable"}
-
-                  </button>
+  className="btn btn-outline product-add-btn"
+  disabled={!shoe.available}
+  onClick={(e) => {
+    e.stopPropagation();
+    navigate(`/product/${shoe.id}`);
+  }}
+>
+  {shoe.available
+    ? "Select Size"
+    : "Unavailable"}
+</button>
 
 
 

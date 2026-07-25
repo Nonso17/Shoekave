@@ -44,12 +44,18 @@ function Navbar({
 
         {/* Desktop Categories */}
         <div className="navbar-center desktop-only">
+          <Link
+  to="/"
+  className="nav-link"
+>
+  Home
+</Link>
           <div
             className="dropdown-container"
             onMouseEnter={() => setIsDropdownOpen(true)}
             onMouseLeave={() => setIsDropdownOpen(false)}
           >
-            <button className="dropdown-btn">
+            <button className="nav-link dropdown-btn">
               Brands
               <svg
                 width="16"

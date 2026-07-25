@@ -25,7 +25,20 @@ function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+  const savedCart = localStorage.getItem("cart");
+
+  return savedCart
+    ? JSON.parse(savedCart)
+    : [];
+  });
+
+  useEffect(() => {
+  localStorage.setItem(
+    "cart",
+    JSON.stringify(cart)
+  );
+}, [cart]);
 
   const [filterBrand, setFilterBrand] = useState("All");
 
@@ -77,12 +90,41 @@ function App() {
 
   const addToCart = (item) => {
 
-    setCart((prev) => [
-      ...prev,
-      item
-    ]);
+  setCart((prev) => {
 
-  };
+    const existingItem = prev.find(
+      (cartItem) =>
+        cartItem.id === item.id &&
+        cartItem.selectedSize === item.selectedSize
+    );
+
+
+    if (existingItem) {
+
+      return prev.map((cartItem) =>
+        cartItem.id === item.id &&
+        cartItem.selectedSize === item.selectedSize
+          ? {
+              ...cartItem,
+              quantity: cartItem.quantity + 1,
+            }
+          : cartItem
+      );
+
+    }
+
+
+    return [
+      ...prev,
+      {
+        ...item,
+        quantity: 1,
+      },
+    ];
+
+  });
+
+};
 
 
 
@@ -95,17 +137,46 @@ function App() {
 
   };
 
+  const increaseQuantity = (index) => {
 
-
-
-
-  const cartTotal = cart.reduce(
-
-    (total, item) => total + Number(item.price),
-
-    0
-
+  setCart((prev) =>
+    prev.map((item, i) =>
+      i === index
+        ? {
+            ...item,
+            quantity: item.quantity + 1,
+          }
+        : item
+    )
   );
+
+};
+
+
+const decreaseQuantity = (index) => {
+
+  setCart((prev) =>
+    prev.map((item, i) =>
+      i === index && item.quantity > 1
+        ? {
+            ...item,
+            quantity: item.quantity - 1,
+          }
+        : item
+    )
+  );
+
+};
+
+
+
+
+
+ const cartTotal = cart.reduce(
+  (total, item) =>
+    total + Number(item.price) * item.quantity,
+  0
+);
 
 
 
@@ -167,7 +238,6 @@ function App() {
 
                 filterBrand={filterBrand}
 
-                addToCart={addToCart}
 
               />
 
@@ -182,10 +252,12 @@ function App() {
             element={
             <ProtectedRoute>
               <Cart
-              cart={cart}
-              cartTotal={cartTotal}
-              removeFromCart={removeFromCart}
-              />
+  cart={cart}
+  cartTotal={cartTotal}
+  removeFromCart={removeFromCart}
+  increaseQuantity={increaseQuantity}
+  decreaseQuantity={decreaseQuantity}
+/>
             </ProtectedRoute>
   }
 />

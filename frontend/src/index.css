@@ -152,6 +152,7 @@ button {
   align-items: center;
 }
 
+
 @media (max-width: 768px) {
   .navbar-links {
     display: none;
@@ -167,6 +168,9 @@ button {
   cursor: pointer;
   position: relative;
   transition: color 0.2s ease;
+  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .nav-link:hover, .nav-link.active {
@@ -195,6 +199,15 @@ button {
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+
+.dropdown-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .cart-btn {
@@ -454,6 +467,35 @@ button {
   text-decoration: line-through;
 }
 
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.8rem 0;
+}
+
+
+.quantity-control button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 1.2rem;
+}
+
+
+.quantity-control button:hover {
+  background: #111;
+  color: white;
+}
+
+
+.quantity-control span {
+  min-width: 20px;
+  text-align: center;
+}
 @media (max-width: 768px) {
 
   .details-grid {
@@ -771,7 +813,9 @@ button {
 .navbar-center {
   flex: 1;
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.5rem;
 }
 
 .dropdown-container {

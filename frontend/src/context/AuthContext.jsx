@@ -90,6 +90,8 @@ const login = async (email, password) => {
     const logout = () => {
 
     localStorage.clear();
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
 
     setUser(null);
 
