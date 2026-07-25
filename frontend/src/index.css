@@ -316,6 +316,13 @@ button {
   gap: 2rem;
 }
 
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
 /* Product Card */
 .product-card {
   background-color: var(--bg-primary);
