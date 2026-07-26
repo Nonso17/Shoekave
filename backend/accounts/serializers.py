@@ -138,4 +138,22 @@ class ProfileSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "email",
+            "is_staff",
         )
+
+
+class UserManagementSerializer(serializers.ModelSerializer):
+
+    class Meta:
+
+        model = User
+
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "is_staff",
+            "is_active",
+            "date_joined",
+        )

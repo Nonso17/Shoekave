@@ -151,3 +151,14 @@ AUTH_USER_MODEL="accounts.User"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+from decouple import Config, RepositoryEnv, config
+
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    env_config = Config(RepositoryEnv(env_file))
+    PAYSTACK_SECRET_KEY = env_config("PAYSTACK_SECRET_KEY", default="")
+    PAYSTACK_PUBLIC_KEY = env_config("PAYSTACK_PUBLIC_KEY", default="")
+else:
+    PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
+    PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")

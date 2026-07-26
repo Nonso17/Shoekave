@@ -5,6 +5,7 @@ import "./index.css";
 import api from "./api/api";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProductDetails from "./pages/ProductDetails";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 import { AuthContext } from "./context/AuthContext";
 
@@ -15,6 +16,10 @@ import Home from "./pages/Home";
 import Cart from "./pages/Cart";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Profile from "./pages/Profile";
+import Checkout from "./pages/Checkout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 
 function App() {
@@ -138,34 +143,34 @@ function App() {
   };
 
   const increaseQuantity = (index) => {
+    setCart((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              quantity: Number(item.quantity || 1) + 1,
+            }
+          : item
+      )
+    );
+  };
 
-  setCart((prev) =>
-    prev.map((item, i) =>
-      i === index
-        ? {
-            ...item,
-            quantity: item.quantity + 1,
-          }
-        : item
-    )
-  );
+  const decreaseQuantity = (index) => {
+    setCart((prev) =>
+      prev.map((item, i) =>
+        i === index && Number(item.quantity || 1) > 1
+          ? {
+              ...item,
+              quantity: Number(item.quantity || 1) - 1,
+            }
+          : item
+      )
+    );
+  };
 
-};
-
-
-const decreaseQuantity = (index) => {
-
-  setCart((prev) =>
-    prev.map((item, i) =>
-      i === index && item.quantity > 1
-        ? {
-            ...item,
-            quantity: item.quantity - 1,
-          }
-        : item
-    )
-  );
-
+const clearCart = () => {
+  setCart([]);
+  localStorage.removeItem("cart");
 };
 
 
@@ -290,6 +295,43 @@ const decreaseQuantity = (index) => {
       addToCart={addToCart}
     />
   }
+/>
+
+<Route
+  path="/profile"
+  element={<Profile />}
+/>
+
+<Route
+  path="/checkout"
+  element={
+    <ProtectedRoute>
+      <Checkout
+        cart={cart}
+        cartTotal={cartTotal}
+        clearCart={clearCart}
+      />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+ path="/admin"
+ element={<AdminDashboard />}
+/>
+
+<Route
+path="/admin/login"
+element={<AdminLogin />}
+/>
+
+<Route
+ path="/payment/success"
+ element={
+   <PaymentSuccess
+     clearCart={clearCart}
+   />
+ }
 />
 
           <Route
