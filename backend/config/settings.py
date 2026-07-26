@@ -82,17 +82,30 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
+from decouple import Config, RepositoryEnv, config
+
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    env_config = Config(RepositoryEnv(env_file))
+    get_env = env_config
+else:
+    get_env = config
+
+PAYSTACK_SECRET_KEY = get_env("PAYSTACK_SECRET_KEY", default="")
+PAYSTACK_PUBLIC_KEY = get_env("PAYSTACK_PUBLIC_KEY", default="")
+
+
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'shoekave_db',
-        'USER': 'postgres',
-        'PASSWORD': 'Postgresmartin17.',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': get_env("DB_NAME", default="shoekave_db"),
+        'USER': get_env("DB_USER", default="postgres"),
+        'PASSWORD': get_env("DB_PASSWORD", default=""),
+        'HOST': get_env("DB_HOST", default="localhost"),
+        'PORT': get_env("DB_PORT", default="5432"),
     }
 }
     
@@ -151,14 +164,3 @@ AUTH_USER_MODEL="accounts.User"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-
-from decouple import Config, RepositoryEnv, config
-
-env_file = BASE_DIR / ".env"
-if env_file.exists():
-    env_config = Config(RepositoryEnv(env_file))
-    PAYSTACK_SECRET_KEY = env_config("PAYSTACK_SECRET_KEY", default="")
-    PAYSTACK_PUBLIC_KEY = env_config("PAYSTACK_PUBLIC_KEY", default="")
-else:
-    PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
-    PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")
