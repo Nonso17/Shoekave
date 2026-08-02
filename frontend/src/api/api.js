@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const MEDIA_URL = "http://127.0.0.1:8000";
+export const MEDIA_URL = "https://shoekave-backend.onrender.com";
 
 const api = axios.create({
   baseURL: `${MEDIA_URL}/api/`,

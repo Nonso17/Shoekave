@@ -36,6 +36,7 @@ SECRET_KEY = "django-insecure-gbia^5j@9y+69kawn!4pb*p1a1spf0r9=sm)1+!6wwam)6bi_q
 DEBUG = get_env("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = get_env(
+    "shoekave-backend.onrender.com",
     "ALLOWED_HOSTS",
     default="127.0.0.1,localhost"
 ).split(",")
@@ -168,6 +169,7 @@ USE_TZ = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://your-shoekave.vercel.app",
 ]
 
 from datetime import timedelta
