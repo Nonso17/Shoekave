@@ -20,6 +20,8 @@ import Profile from "./pages/Profile";
 import Checkout from "./pages/Checkout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLogin from "./pages/admin/AdminLogin";
+import { FullPageLoader } from "./components/LoadingStates";
+import ForgotPassword from "./pages/ForgotPassword";
 
 
 function App() {
@@ -186,18 +188,9 @@ const clearCart = () => {
 
 
 
+
   if (authLoading) {
-
-    return (
-
-      <div className="loading-screen">
-
-        Loading...
-
-      </div>
-
-    );
-
+    return <FullPageLoader message="Initializing Shoekave..." />;
   }
 
 
@@ -285,6 +278,11 @@ const clearCart = () => {
 
             element={<Signup />}
 
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPassword />}
           />
 
           <Route

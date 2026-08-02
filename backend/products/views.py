@@ -1,4 +1,5 @@
 import json
+import logging
 import requests
 from django.conf import settings
 from rest_framework.views import APIView
@@ -9,6 +10,9 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import Product, ProductImage, ProductSize, Brand, Category, Order
 from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
+from accounts.emails import send_order_confirmation_email
+
+logger = logging.getLogger(__name__)
 
 
 class ProductListView(APIView):
@@ -38,6 +42,13 @@ class CheckoutView(APIView):
         serializer = OrderSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             order = serializer.save()
+
+            # Send Order Confirmation Email via Brevo
+            try:
+                send_order_confirmation_email(order)
+            except Exception as exc:
+                logger.error(f"Failed to send order confirmation email for order #{order.id}: {exc}")
+
             return Response(
                 OrderSerializer(order).data,
                 status=status.HTTP_201_CREATED

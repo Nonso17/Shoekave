@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import api from "../../api/api";
 
 function AdminUsers() {
@@ -11,13 +12,17 @@ function AdminUsers() {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (showToast = false) => {
     try {
       setLoading(true);
       const res = await api.get("admin/users/");
       setUsers(res.data);
+      if (showToast === true) {
+        toast.info("Users list refreshed.");
+      }
     } catch (err) {
       console.error("Error fetching users:", err);
+      toast.error("Failed to load users list.");
     } finally {
       setLoading(false);
     }
@@ -38,9 +43,10 @@ function AdminUsers() {
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, is_staff: res.data.is_staff } : u))
       );
+      toast.success(newStatus ? `Granted Admin role to ${user.email}.` : `Revoked Admin role from ${user.email}.`);
     } catch (err) {
       console.error("Error updating user staff status:", err);
-      alert(err.response?.data?.error || "Failed to update staff status.");
+      toast.error(err.response?.data?.error || "Failed to update staff status.");
     } finally {
       setActionLoadingId(null);
     }
@@ -61,9 +67,10 @@ function AdminUsers() {
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, is_active: res.data.is_active } : u))
       );
+      toast.success(newStatus ? `Account for ${user.email} reactivated.` : `Account for ${user.email} suspended.`);
     } catch (err) {
       console.error("Error updating user active status:", err);
-      alert(err.response?.data?.error || "Failed to update active status.");
+      toast.error(err.response?.data?.error || "Failed to update active status.");
     } finally {
       setActionLoadingId(null);
     }
@@ -76,9 +83,10 @@ function AdminUsers() {
     try {
       await api.delete(`admin/users/${user.id}/`);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      toast.success(`User account ${user.email} deleted successfully.`);
     } catch (err) {
       console.error("Error deleting user:", err);
-      alert(err.response?.data?.error || "Failed to delete user.");
+      toast.error(err.response?.data?.error || "Failed to delete user.");
     } finally {
       setActionLoadingId(null);
     }
@@ -98,7 +106,7 @@ function AdminUsers() {
           <h2>User Management</h2>
           <p className="admin-subtitle">Manage customer accounts, admin roles, and active permissions</p>
         </div>
-        <button className="admin-btn secondary" onClick={fetchUsers}>
+        <button className="admin-btn secondary" onClick={() => fetchUsers(true)}>
           🔄 Refresh Users
         </button>
       </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { createPortal } from "react-dom";
 import api, { MEDIA_URL } from "../../api/api";
+import { TableSkeleton, Spinner } from "../../components/LoadingStates";
 
 const STATUSES = ["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
 
@@ -16,13 +18,17 @@ function AdminOrders() {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (showToast = false) => {
     try {
       setLoading(true);
       const res = await api.get("products/admin/orders/");
       setOrders(res.data);
+      if (showToast === true) {
+        toast.info("Orders list refreshed.");
+      }
     } catch (err) {
       console.error("Error fetching orders:", err);
+      toast.error("Failed to load orders.");
     } finally {
       setLoading(false);
     }
@@ -40,9 +46,10 @@ function AdminOrders() {
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder((prev) => ({ ...prev, status: res.data.status }));
       }
+      toast.success(`Order #${orderId} status updated to ${newStatus}!`);
     } catch (err) {
       console.error("Error updating order status:", err);
-      alert("Failed to update order status.");
+      toast.error("Failed to update order status.");
     } finally {
       setUpdatingId(null);
     }
@@ -76,7 +83,7 @@ function AdminOrders() {
           <h2>Order Management</h2>
           <p className="admin-subtitle">Track customer purchases, delivery info, and order status updates</p>
         </div>
-        <button className="admin-btn secondary" onClick={fetchOrders}>
+        <button className="admin-btn secondary" onClick={() => fetchOrders(true)}>
           🔄 Refresh Orders
         </button>
       </div>
@@ -128,7 +135,7 @@ function AdminOrders() {
 
       {/* Orders Table */}
       {loading ? (
-        <div className="admin-loading">Loading Orders List...</div>
+        <TableSkeleton rows={6} cols={8} />
       ) : filteredOrders.length === 0 ? (
         <div className="admin-empty">No orders found matching your search.</div>
       ) : (

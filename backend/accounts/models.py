@@ -6,6 +6,7 @@ from .managers import UserManager
 class User(AbstractUser):
     username = models.CharField(max_length=150, unique=True, blank=True)
     email = models.EmailField(unique=True)
+    reset_code = models.CharField(max_length=6, blank=True, null=True)
 
     objects = UserManager()
 

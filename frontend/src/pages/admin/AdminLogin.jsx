@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import api from "../../api/api";
 import { AuthContext } from "../../context/AuthContext";
 
@@ -29,13 +30,14 @@ function AdminLogin() {
       if (response.data?.tokens) {
         localStorage.setItem("access", response.data.tokens.access);
         localStorage.setItem("refresh", response.data.tokens.refresh);
+        toast.success("Admin authenticated successfully!");
         window.location.href = "/admin";
       }
     } catch (error) {
       console.error("Admin login error:", error.response?.data);
-      setErrorMsg(
-        error.response?.data?.error || "Admin authentication failed. Invalid credentials."
-      );
+      const errMsg = error.response?.data?.error || "Admin authentication failed. Invalid credentials.";
+      setErrorMsg(errMsg);
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -72,11 +74,13 @@ function AdminLogin() {
 
         {errorMsg && <div className="admin-alert error">{errorMsg}</div>}
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} autoComplete="off">
           <div className="form-group">
             <label className="form-label">Admin Email</label>
             <input
               type="email"
+              name="admin_email"
+              id="admin_email"
               required
               className="form-control"
               placeholder="admin@shoekave.com"
@@ -90,11 +94,13 @@ function AdminLogin() {
             <label className="form-label">Password</label>
             <input
               type="password"
+              name="admin_password"
+              id="admin_password"
               required
               className="form-control"
               placeholder="Enter password"
               value={password}
-              autoComplete="current-password"
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import { useParams, useNavigate } from "react-router-dom";
 import { MEDIA_URL } from "../api/api";
+import { ProductDetailsSkeleton } from "../components/LoadingStates";
 
 function ProductDetails({ products, addToCart }) {
 
@@ -16,10 +18,19 @@ function ProductDetails({ products, addToCart }) {
   );
 
 
+
+  if (!products || products.length === 0) {
+    return <ProductDetailsSkeleton />;
+  }
+
   if (!product) {
     return (
-      <div className="container">
+      <div className="container" style={{ padding: "4rem 1rem", textAlign: "center" }}>
         <h2>Product not found</h2>
+        <p style={{ color: "var(--text-secondary)", marginTop: "0.5rem" }}>The requested shoe listing could not be found.</p>
+        <button className="btn btn-accent" style={{ marginTop: "1rem" }} onClick={() => navigate("/")}>
+          Return to Shop
+        </button>
       </div>
     );
   }
@@ -29,7 +40,7 @@ function ProductDetails({ products, addToCart }) {
   const handleAddToCart = () => {
 
     if (!selectedSize) {
-      alert("Please select a size");
+      toast.warn("Please select a size");
       return;
     }
 

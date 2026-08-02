@@ -12,9 +12,18 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from django.conf.global_settings import AUTH_USER_MODEL
 from pathlib import Path
+from decouple import Config, RepositoryEnv, config
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    env_config = Config(RepositoryEnv(env_file))
+    get_env = env_config
+else:
+    get_env = config
 
 
 # Quick-start development settings - unsuitable for production
@@ -24,7 +33,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-gbia^5j@9y+69kawn!4pb*p1a1spf0r9=sm)1+!6wwam)6bi_q"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = []
 
@@ -48,6 +57,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 
     "corsheaders.middleware.CorsMiddleware",
+
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 
     "django.contrib.sessions.middleware.SessionMiddleware",
 
@@ -82,15 +93,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-from decouple import Config, RepositoryEnv, config
-
-env_file = BASE_DIR / ".env"
-if env_file.exists():
-    env_config = Config(RepositoryEnv(env_file))
-    get_env = env_config
-else:
-    get_env = config
-
 PAYSTACK_SECRET_KEY = get_env("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_PUBLIC_KEY = get_env("PAYSTACK_PUBLIC_KEY", default="")
 
@@ -98,16 +100,27 @@ PAYSTACK_PUBLIC_KEY = get_env("PAYSTACK_PUBLIC_KEY", default="")
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': get_env("DB_NAME", default="shoekave_db"),
-        'USER': get_env("DB_USER", default="postgres"),
-        'PASSWORD': get_env("DB_PASSWORD", default=""),
-        'HOST': get_env("DB_HOST", default="localhost"),
-        'PORT': get_env("DB_PORT", default="5432"),
+database_url = get_env("DATABASE_URL", default="")
+
+if database_url:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": get_env("DB_NAME", default="shoekave_db"),
+            "USER": get_env("DB_USER", default="postgres"),
+            "PASSWORD": get_env("DB_PASSWORD", default=""),
+            "HOST": get_env("DB_HOST", default="localhost"),
+            "PORT": get_env("DB_PORT", default="5432"),
+        }
+    }
     
 
 
@@ -154,13 +167,42 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+from datetime import timedelta
+
 REST_FRAMEWORK={
     'DEFAULT_AUTHENTICATION_CLASSES':(
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
 AUTH_USER_MODEL="accounts.User"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Email Configuration
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = get_env("EMAIL_HOST", default="smtp-relay.brevo.com")
+EMAIL_PORT = get_env("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = get_env("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_HOST_USER = get_env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = get_env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", default="ShoeKave <yungmartins17@gmail.com>")
+
+# Brevo API key (falls back to EMAIL_HOST_PASSWORD if not provided)
+BREVO_API_KEY = get_env("BREVO_API_KEY", default=get_env("EMAIL_HOST_PASSWORD", default=""))
+
+# Optional SSL flag (some SMTP providers use SSL on port 465)
+EMAIL_USE_SSL = get_env("EMAIL_USE_SSL", default=False, cast=bool)

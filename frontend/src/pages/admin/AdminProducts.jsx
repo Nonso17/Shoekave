@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { createPortal } from "react-dom";
 import api, { MEDIA_URL } from "../../api/api";
 import ProductModal from "./ProductModal";
 import StockEditor from "./StockEditor";
+import { ProductGridSkeleton, TableSkeleton, Spinner } from "../../components/LoadingStates";
 
 function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -18,6 +20,8 @@ function AdminProducts() {
   const [stockModalProduct, setStockModalProduct] = useState(null);
   const [stockModalSizes, setStockModalSizes] = useState({ 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0, 46: 0 });
   const [savingStock, setSavingStock] = useState(false);
+
+  const [productToDelete, setProductToDelete] = useState(null);
 
   const [metaOptions, setMetaOptions] = useState({ brands: [], categories: [] });
 
@@ -58,13 +62,14 @@ function AdminProducts() {
   };
 
   const handleDeleteProduct = async (product) => {
-    if (!window.confirm(`Are you sure you want to delete "${product.name}"?`)) return;
     try {
       await api.delete(`products/admin/products/${product.id}/`);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      toast.success(`Product "${product.name}" deleted successfully.`);
     } catch (err) {
       console.error("Error deleting product:", err);
-      alert("Failed to delete product.");
+      const errMsg = err.response?.data?.detail || err.response?.data?.error || err.response?.data?.message || "Failed to delete product.";
+      toast.error(errMsg);
     }
   };
 
@@ -83,20 +88,29 @@ function AdminProducts() {
       });
     }
 
-    if (productData.id) {
-      // PATCH update
-      const res = await api.patch(`products/admin/products/${productData.id}/`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productData.id ? res.data : p))
-      );
-    } else {
-      // POST create
-      const res = await api.post("products/admin/products/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setProducts((prev) => [res.data, ...prev]);
+    try {
+      if (productData.id) {
+        // PATCH update
+        const res = await api.patch(`products/admin/products/${productData.id}/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productData.id ? res.data : p))
+        );
+        toast.success(`Product "${productData.name}" updated successfully!`);
+      } else {
+        // POST create
+        const res = await api.post("products/admin/products/", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setProducts((prev) => [res.data, ...prev]);
+        toast.success(`Product "${productData.name}" created successfully!`);
+      }
+    } catch (err) {
+      console.error("Error saving product:", err);
+      const errMsg = err.response?.data?.detail || err.response?.data?.error || "Failed to save product.";
+      toast.error(errMsg);
+      throw err;
     }
   };
 
@@ -130,10 +144,11 @@ function AdminProducts() {
       setProducts((prev) =>
         prev.map((p) => (p.id === stockModalProduct.id ? res.data : p))
       );
+      toast.success(`Stock breakdown updated for ${stockModalProduct.name}!`);
       setStockModalProduct(null);
     } catch (err) {
       console.error("Failed to update stock:", err);
-      alert("Failed to update size stocks.");
+      toast.error("Failed to update size stocks.");
     } finally {
       setSavingStock(false);
     }
@@ -210,7 +225,7 @@ function AdminProducts() {
       </div>
 
       {loading ? (
-        <div className="admin-loading">Loading Products Inventory...</div>
+        viewMode === "cards" ? <ProductGridSkeleton count={6} /> : <TableSkeleton rows={5} cols={7} />
       ) : filteredProducts.length === 0 ? (
         <div className="admin-empty">No products found matching your criteria.</div>
       ) : viewMode === "cards" ? (
@@ -271,7 +286,7 @@ function AdminProducts() {
                   </button>
                   <button
                     className="admin-btn action-delete"
-                    onClick={() => handleDeleteProduct(product)}
+                    onClick={() => setProductToDelete(product)}
                   >
                     🗑️ Delete
                   </button>
@@ -354,7 +369,7 @@ function AdminProducts() {
                         </button>
                         <button
                           className="admin-btn-icon delete"
-                          onClick={() => handleDeleteProduct(product)}
+                          onClick={() => setProductToDelete(product)}
                           title="Delete Product"
                         >
                           🗑️
@@ -410,7 +425,63 @@ function AdminProducts() {
                 onClick={handleSaveQuickStock}
                 disabled={savingStock}
               >
-                {savingStock ? "Saving Stock..." : "Save Stock Changes"}
+                {savingStock ? (
+                  <span className="btn-spinner-wrap">
+                    <Spinner size={16} />
+                    Saving Stock...
+                  </span>
+                ) : (
+                  "Save Stock Changes"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* Delete Confirmation Modal */}
+      {productToDelete && createPortal(
+        <div className="admin-modal-overlay" onClick={() => setProductToDelete(null)}>
+          <div className="admin-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="admin-modal-header" style={{ borderBottom: "1px solid var(--border-color)", padding: "1.25rem 1.5rem" }}>
+              <h2 style={{ margin: 0, fontSize: "1.25rem", color: "var(--accent-color, #ef4444)" }}>⚠️ Delete Product</h2>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setProductToDelete(null)}
+                style={{ fontSize: "1.5rem", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ padding: "1.5rem" }}>
+              <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: "1.5", color: "var(--text-primary)" }}>
+                Are you sure you want to delete <strong>{productToDelete.name}</strong>?
+              </p>
+              <p style={{ margin: "10px 0 0 0", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                This action is permanent and cannot be undone. All associated sizes and images will also be deleted.
+              </p>
+            </div>
+
+            <div className="admin-modal-actions" style={{ padding: "1.25rem 1.5rem", borderTop: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="admin-btn secondary"
+                onClick={() => setProductToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="admin-btn primary"
+                style={{ backgroundColor: "var(--accent-color, #ef4444)", borderColor: "var(--accent-color, #ef4444)" }}
+                onClick={() => {
+                  handleDeleteProduct(productToDelete);
+                  setProductToDelete(null);
+                }}
+              >
+                Yes, Delete Product
               </button>
             </div>
           </div>

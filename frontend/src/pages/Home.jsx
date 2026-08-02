@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { MEDIA_URL } from "../api/api";
 import { useNavigate } from "react-router-dom";
+import { ProductGridSkeleton } from "../components/LoadingStates";
 
 
 function Home({
@@ -46,10 +47,22 @@ function Home({
 
 
 
+
   if (loading) {
     return (
-      <div className="container" style={{ padding: "4rem 0" }}>
-        <h2>Loading products...</h2>
+      <div className="animate-fade-in">
+        <section className="hero">
+          <div className="container">
+            <h1>Walk with Confidence</h1>
+            <p>Discover the perfect pair that matches your style and elevates your performance.</p>
+          </div>
+        </section>
+        <section id="collection" className="products-section">
+          <div className="container">
+            <h2 className="section-title">Loading Collection...</h2>
+            <ProductGridSkeleton count={8} />
+          </div>
+        </section>
       </div>
     );
   }

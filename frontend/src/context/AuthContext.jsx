@@ -87,33 +87,37 @@ const login = async (email, password) => {
 
 
 
+    const saveAuthTokens = async (tokens) => {
+        if (tokens?.access) {
+            localStorage.setItem("access", tokens.access);
+        }
+        if (tokens?.refresh) {
+            localStorage.setItem("refresh", tokens.refresh);
+        }
+        await getUser();
+    };
+
     const logout = () => {
-
-    localStorage.clear();
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-
-    setUser(null);
-
-};
-
+        localStorage.clear();
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        setUser(null);
+    };
 
     return (
-
         <AuthContext.Provider
             value={{
                 user,
                 login,
                 register,
                 logout,
+                getUser,
+                saveAuthTokens,
                 loading
             }}
         >
-
             {children}
-
         </AuthContext.Provider>
-
     );
 
 }

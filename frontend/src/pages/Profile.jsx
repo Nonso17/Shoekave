@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api, { MEDIA_URL } from "../api/api";
+import { OrderSkeleton } from "../components/LoadingStates";
 
 const STATUS_TABS = ["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
 
@@ -234,11 +235,9 @@ function Profile() {
             </div>
           )}
 
+
           {loadingOrders ? (
-            <div style={{ textAlign: "center", padding: "3rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
-              <div className="checkout-spinner" style={{ margin: "0 auto 1rem auto" }}></div>
-              <p style={{ color: "var(--text-secondary)" }}>Loading your order history...</p>
-            </div>
+            <OrderSkeleton count={3} />
           ) : orders.length === 0 ? (
             <div className="orders-empty-card">
               <div className="orders-empty-icon">
