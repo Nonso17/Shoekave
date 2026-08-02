@@ -33,9 +33,12 @@ else:
 SECRET_KEY = "django-insecure-gbia^5j@9y+69kawn!4pb*p1a1spf0r9=sm)1+!6wwam)6bi_q"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = get_env("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = get_env(
+    "ALLOWED_HOSTS",
+    default="127.0.0.1,localhost"
+).split(",")
 
 
 # Application definition
@@ -46,7 +49,9 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "cloudinary_storage",
     "django.contrib.staticfiles",
+    "cloudinary",
     "accounts",
     "rest_framework",
     "corsheaders",
@@ -159,7 +164,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = "static/"
 
 
 CORS_ALLOWED_ORIGINS = [
@@ -191,7 +195,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Email Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = get_env("EMAIL_HOST", default="smtp-relay.brevo.com")
@@ -206,3 +209,18 @@ BREVO_API_KEY = get_env("BREVO_API_KEY", default=get_env("EMAIL_HOST_PASSWORD", 
 
 # Optional SSL flag (some SMTP providers use SSL on port 465)
 EMAIL_USE_SSL = get_env("EMAIL_USE_SSL", default=False, cast=bool)
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": get_env("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY": get_env("CLOUDINARY_API_KEY"),
+    "API_SECRET": get_env("CLOUDINARY_API_SECRET"),
+}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
