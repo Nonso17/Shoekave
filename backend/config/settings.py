@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "cloudinary_storage",
     "django.contrib.staticfiles",
     "cloudinary",
     "accounts",
@@ -210,19 +209,22 @@ BREVO_API_KEY = get_env("BREVO_API_KEY", default=get_env("EMAIL_HOST_PASSWORD", 
 # Optional SSL flag (some SMTP providers use SSL on port 465)
 EMAIL_USE_SSL = get_env("EMAIL_USE_SSL", default=False, cast=bool)
 
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": get_env("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": get_env("CLOUDINARY_API_KEY"),
-    "API_SECRET": get_env("CLOUDINARY_API_SECRET"),
-}
-
 STORAGES = {
     "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+import cloudinary
+
+cloudinary.config(
+    cloud_name=get_env("CLOUDINARY_CLOUD_NAME"),
+    api_key=get_env("CLOUDINARY_API_KEY"),
+    api_secret=get_env("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

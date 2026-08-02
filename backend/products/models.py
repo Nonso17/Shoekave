@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from cloudinary.models import CloudinaryField
 
 class Brand(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -49,7 +50,7 @@ class ProductImage(models.Model):
         related_name="images"
     )
 
-    image = models.ImageField(upload_to="products/")
+    image = CloudinaryField("image")
 
     alt_text = models.CharField(max_length=255, blank=True)
 
