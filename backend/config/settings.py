@@ -35,11 +35,13 @@ SECRET_KEY = "django-insecure-gbia^5j@9y+69kawn!4pb*p1a1spf0r9=sm)1+!6wwam)6bi_q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_env("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = get_env(
-    "shoekave-backend.onrender.com",
-    "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost"
-).split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in get_env(
+        "ALLOWED_HOSTS",
+        default="127.0.0.1,localhost,shoekave-backend.onrender.com"
+    ).split(",")
+]
 
 
 # Application definition
