@@ -3,6 +3,8 @@ from rest_framework import serializers
 from .models import Product, ProductImage, ProductSize, Brand, Category, Order, OrderItem
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
         fields = [
@@ -11,6 +13,10 @@ class ProductImageSerializer(serializers.ModelSerializer):
             "alt_text",
         ]
 
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 class ProductSizeSerializer(serializers.ModelSerializer):
     class Meta:
