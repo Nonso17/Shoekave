@@ -30,6 +30,9 @@ function App() {
 
 
   const [products, setProducts] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [cart, setCart] = useState(() => {
@@ -49,35 +52,35 @@ function App() {
 
   const [filterBrand, setFilterBrand] = useState("All");
 
-
+useEffect(() => {
+  setCurrentPage(1);
+}, [filterBrand]);
 
   useEffect(() => {
+  const fetchProducts = async () => {
+    setLoading(true);
 
-    const fetchProducts = async () => {
+    try {
+      let url = `products/?page=${currentPage}`;
 
-      try {
-
-        const response = await api.get("products/");
-
-        setProducts(response.data);
-
-      } catch (error) {
-
-        console.error(error);
-
-      } finally {
-
-        setLoading(false);
-
+      if (filterBrand !== "All") {
+        url += `&brand=${encodeURIComponent(filterBrand)}`;
       }
 
-    };
+      const response = await api.get(url);
 
+      setProducts(response.data.results);
+      setCount(response.data.count);
+      setTotalPages(Math.ceil(response.data.count / 12));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchProducts();
-
-  }, []);
-
+  fetchProducts();
+}, [currentPage, filterBrand]);
 
 
 
@@ -229,15 +232,13 @@ const clearCart = () => {
             element={
 
               <Home
-
-                products={products}
-
-                loading={loading}
-
-                filterBrand={filterBrand}
-
-
-              />
+  products={products}
+  loading={loading}
+  filterBrand={filterBrand}
+  currentPage={currentPage}
+  setCurrentPage={setCurrentPage}
+  totalPages={totalPages}
+/>
 
             }
 
@@ -289,7 +290,6 @@ const clearCart = () => {
   path="/product/:id"
   element={
     <ProductDetails
-      products={products}
       addToCart={addToCart}
     />
   }

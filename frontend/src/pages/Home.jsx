@@ -8,44 +8,14 @@ function Home({
   products,
   loading,
   filterBrand,
+  currentPage,
+  setCurrentPage,
+  totalPages,
 }) {
 
   const navigate = useNavigate();
 
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const itemsPerPage = 12;
-
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterBrand]);
-
-
-
-  const filteredShoes =
-    filterBrand === "All"
-      ? products
-      : products.filter(
-          (product) => product.brand === filterBrand
-        );
-
-
-
-  const totalPages = Math.ceil(
-    filteredShoes.length / itemsPerPage
-  );
-
-
-  const startIndex = (currentPage - 1) * itemsPerPage;
-
-
-  const currentShoes = filteredShoes.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
-
-
+ const currentShoes = products;
 
 
   if (loading) {

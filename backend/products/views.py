@@ -18,16 +18,26 @@ logger = logging.getLogger(__name__)
 
 
 
-class ProductListView(ListAPIView):
-    queryset = (
-        Product.objects
-        .select_related("brand", "category")
-        .prefetch_related("images", "sizes")
-        .order_by("-id")
-    )
+from rest_framework.generics import ListAPIView
 
+class ProductListView(ListAPIView):
     serializer_class = ProductSerializer
     pagination_class = ProductPagination
+
+    def get_queryset(self):
+        queryset = (
+            Product.objects
+            .select_related("brand", "category")
+            .prefetch_related("images", "sizes")
+            .order_by("-id")
+        )
+
+        brand = self.request.query_params.get("brand")
+
+        if brand and brand.lower() != "all":
+            queryset = queryset.filter(brand__name__iexact=brand)
+
+        return queryset
 
 
 class ProductDetailView(APIView):
