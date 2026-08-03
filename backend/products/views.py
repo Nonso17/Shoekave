@@ -12,22 +12,22 @@ from django.db.models import Prefetch
 from .models import Product, ProductImage, ProductSize, Brand, Category, Order
 from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
 from accounts.emails import send_order_confirmation_email
-
+from rest_framework.generics import ListAPIView
+from .pagination import ProductPagination
 logger = logging.getLogger(__name__)
 
 
 
-class ProductListView(APIView):
-    def get(self, request):
-        products = (
-            Product.objects
-            .select_related("brand", "category")
-            .prefetch_related("images", "sizes")
-            .order_by("-id")[:10]
-        )
+class ProductListView(ListAPIView):
+    queryset = (
+        Product.objects
+        .select_related("brand", "category")
+        .prefetch_related("images", "sizes")
+        .order_by("-id")
+    )
 
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+    serializer_class = ProductSerializer
+    pagination_class = ProductPagination
 
 
 class ProductDetailView(APIView):
