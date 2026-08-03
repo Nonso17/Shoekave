@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Prefetch
 
 from .models import Product, ProductImage, ProductSize, Brand, Category, Order
 from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
@@ -15,9 +16,16 @@ from accounts.emails import send_order_confirmation_email
 logger = logging.getLogger(__name__)
 
 
+
 class ProductListView(APIView):
     def get(self, request):
-        products = Product.objects.all().order_by("-id")
+        products = (
+            Product.objects
+            .select_related("brand", "category")
+            .prefetch_related("images", "sizes")
+            .order_by("-id")[:10]
+        )
+
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
 
@@ -25,15 +33,20 @@ class ProductListView(APIView):
 class ProductDetailView(APIView):
     def get(self, request, pk):
         try:
-            product = Product.objects.get(pk=pk)
+            product = (
+                Product.objects
+                .select_related("brand", "category")
+                .prefetch_related("images", "sizes")
+                .get(pk=pk)
+            )
         except Product.DoesNotExist:
             return Response(
                 {"error": "Product not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
+
         serializer = ProductSerializer(product)
         return Response(serializer.data)
-
 
 class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]

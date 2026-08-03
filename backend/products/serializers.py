@@ -1,3 +1,4 @@
+from cloudinary.cache.responsive_breakpoints_cache import instance
 from rest_framework import serializers
 from .models import Product, ProductImage, ProductSize, Brand, Category, Order, OrderItem
 
@@ -28,7 +29,7 @@ class ProductSerializer(serializers.ModelSerializer):
     )
     sizes = ProductSizeSerializer(
         many=True,
-        required=False
+        read_only=True
     )
 
     brand = serializers.CharField(required=False, allow_blank=True)
@@ -57,10 +58,14 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        rep['brand'] = instance.brand.name if instance.brand else ""
-        rep['category'] = instance.category.name if instance.category else ""
-        if instance.sizes.exists():
-            rep['stock'] = sum(s.stock for s in instance.sizes.all())
+
+        rep["brand"] = instance.brand.name if instance.brand else ""
+        rep["category"] = instance.category.name if instance.category else ""
+
+        rep["stock"] = sum(
+            size.stock for size in instance.sizes.all()
+        )
+
         return rep
 
     def create(self, validated_data):
@@ -199,4 +204,4 @@ class OrderSerializer(serializers.ModelSerializer):
                 **item
             )
 
-        return order
+        return order
