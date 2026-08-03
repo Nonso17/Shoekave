@@ -245,6 +245,18 @@ function Navbar({
               </button>
             )}
 
+            {user && !user.is_staff && (
+              <button
+                className="mobile-menu-link"
+                onClick={() => {
+                  navigate("/profile");
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                👤 My Profile
+              </button>
+            )}
+
             {user ? (
               <button
                 className="mobile-menu-link"
