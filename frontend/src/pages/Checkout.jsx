@@ -39,7 +39,7 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
     if (e) e.preventDefault();
 
     if (!user) {
-      navigate("/login");
+      navigate("/login", { state: { from: "/checkout" } });
       return;
     }
 
@@ -181,7 +181,7 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
         <form onSubmit={placeOrder} className="checkout-layout">
           
           {/* Left Column — Shipping Info */}
-          <div className="checkout-main-content">
+          <div className="checkout-shipping-section">
             
             {/* Shipping Information Panel */}
             <div className="checkout-card">
@@ -266,7 +266,11 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* Left Column — Order Items */}
+          <div className="checkout-items-section">
+            
             {/* Order Items Panel */}
             <div className="checkout-card">
               <div className="checkout-card-header">

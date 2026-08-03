@@ -84,16 +84,19 @@ useEffect(() => {
 
 
 
-  const brands = useMemo(() => {
+  const [brands, setBrands] = useState(["All"]);
 
-  const list = [
-    "All",
-    ...new Set(products.map((p) => p.brand)),
-  ];
-
-  return list;
-
-}, [products]);
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const response = await api.get("products/brands/");
+        setBrands(["All", ...response.data]);
+      } catch (error) {
+        console.error("Error fetching brands:", error);
+      }
+    };
+    fetchBrands();
+  }, []);
 
 
 

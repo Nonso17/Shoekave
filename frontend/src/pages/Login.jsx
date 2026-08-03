@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Spinner } from "../components/LoadingStates";
@@ -15,6 +15,8 @@ function Login() {
   const { login } = useContext(AuthContext);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "/";
 
 
 
@@ -40,7 +42,7 @@ function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
+      navigate(from);
     } catch (error) {
       console.log(error);
       toast.error(error.response?.data?.error || "Login failed. Please check your credentials.");
@@ -153,6 +155,7 @@ function Login() {
 
           <Link 
             to="/signup" 
+            state={{ from }}
             className="auth-switch-link"
           >
             Sign Up

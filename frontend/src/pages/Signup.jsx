@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { toast } from "react-toastify";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { Spinner } from "../components/LoadingStates";
 
@@ -14,6 +14,8 @@ function Signup() {
   const { register, login } = useContext(AuthContext);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "/";
 
 
 
@@ -42,7 +44,7 @@ function Signup() {
 
       await login(email, password);
       toast.success("Account created successfully!");
-      navigate("/");
+      navigate(from);
     } catch (error) {
       console.log(error.response?.data);
       const errMsg = typeof error.response?.data === "object"
@@ -128,6 +130,7 @@ function Signup() {
 
           <Link 
             to="/login" 
+            state={{ from }}
             className="auth-switch-link"
           >
             Log In

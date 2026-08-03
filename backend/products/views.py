@@ -197,6 +197,14 @@ class BrandCategoryListView(APIView):
         })
 
 
+class PublicBrandListView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        brands = list(Brand.objects.values_list("name", flat=True))
+        return Response(brands)
+
+
 class AdminOrderListView(APIView):
     permission_classes = [IsAdminUser]
 

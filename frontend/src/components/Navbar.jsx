@@ -206,7 +206,7 @@ function Navbar({
       {isMobileMenuOpen && (
         <div className="mobile-menu animate-fade-in">
           <div className="mobile-categories">
-            <h3>Categories</h3>
+            <h3>Brands</h3>
 
             {brands.map((brand) => (
   <button
