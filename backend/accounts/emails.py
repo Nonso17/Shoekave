@@ -3,80 +3,50 @@ import requests
 from email.utils import parseaddr
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, send_mail
+
 
 logger = logging.getLogger(__name__)
 
 BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email"
 
-
 def send_brevo_email(subject, text_content, recipient_email, html_content=None):
-    """
-    Sends an email using Brevo.
-    Attempts Django SMTP send_mail / EmailMultiAlternatives first (smtp-relay.brevo.com).
-    If SMTP encounters an error, falls back to Brevo HTTP REST API.
-    """
-    smtp_error = None
-
-    # Step 1: Try Django SMTP
-    try:
-        if html_content:
-            msg = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email],
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-        else:
-            send_mail(
-                subject=subject,
-                message=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient_email],
-                fail_silently=False,
-            )
-        logger.info(f"Email successfully sent via SMTP to {recipient_email}")
-        return {"status": "success", "method": "smtp"}
-    except Exception as exc:
-        smtp_error = str(exc)
-        logger.warning(f"SMTP email send to {recipient_email} failed: {exc}. Trying Brevo HTTP API fallback...")
-
-    # Step 2: Fallback to Brevo HTTP API
-    api_key = getattr(settings, "BREVO_API_KEY", "")
-    if not api_key:
-        raise RuntimeError(f"Brevo SMTP failed ({smtp_error}) and BREVO_API_KEY is not configured.")
+    api_key = settings.BREVO_API_KEY
 
     sender_name, sender_email = parseaddr(settings.DEFAULT_FROM_EMAIL)
-    if not sender_email:
-        sender_email = "noreply@shoekave.com"
-    if not sender_name:
-        sender_name = "ShoeKave"
 
     payload = {
-        "sender": {"name": sender_name, "email": sender_email},
-        "to": [{"email": recipient_email}],
+        "sender": {
+            "name": sender_name or "ShoeKave",
+            "email": sender_email,
+        },
+        "to": [
+            {
+                "email": recipient_email,
+            }
+        ],
         "subject": subject,
         "textContent": text_content,
     }
+
     if html_content:
         payload["htmlContent"] = html_content
 
     response = requests.post(
-        BREVO_SEND_URL,
-        json=payload,
+        "https://api.brevo.com/v3/smtp/email",
         headers={
             "accept": "application/json",
             "content-type": "application/json",
             "api-key": api_key,
         },
+        json=payload,
         timeout=15,
     )
-    if response.status_code == 403:
-        raise RuntimeError(f"Brevo API forbidden (403). SMTP error: {smtp_error}")
+
+    print(response.status_code)
+    print(response.text)
+
     response.raise_for_status()
-    logger.info(f"Email successfully sent via Brevo HTTP API to {recipient_email}")
+
     return response.json()
 
 
