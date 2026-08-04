@@ -318,7 +318,11 @@ const clearCart = () => {
 
 <Route
  path="/admin"
- element={<AdminDashboard />}
+ element={
+   <ProtectedRoute adminOnly>
+     <AdminDashboard />
+   </ProtectedRoute>
+ }
 />
 
 <Route

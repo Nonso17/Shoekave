@@ -90,8 +90,8 @@ function Navbar({
         {/* Desktop Actions */}
         <div className="navbar-actions desktop-only">
           {user ? (
-            user.is_staff ? (
-              <>
+            <>
+              {user.is_staff && (
                 <Link
                   to="/admin"
                   className="btn btn-accent"
@@ -101,40 +101,28 @@ function Navbar({
                     textDecoration: "none",
                   }}
                 >
-                  🛡️ Admin Control Center
+                  🛡️ Admin Panel
                 </Link>
+              )}
 
-                <button
-                  className="btn btn-outline"
-                  onClick={() => {
-                    handleLogout();
-                    navigate("/admin/login");
-                  }}
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <span
-                  className="user-name"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate("/profile")}
-                >
-                  Hello, {user.first_name || "User"}
-                </span>
+              <span
+                className="user-name"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/profile")}
+              >
+                Hello, {user.first_name || "User"}
+              </span>
 
-                <button
-                  className="btn btn-outline"
-                  onClick={() => {
-                    handleLogout();
-                    navigate("/login");
-                  }}
-                >
-                  Logout
-                </button>
-              </>
-            )
+              <button
+                className="btn btn-outline"
+                onClick={() => {
+                  handleLogout();
+                  navigate("/login");
+                }}
+              >
+                Logout
+              </button>
+            </>
           ) : (
             <Link
               to="/login"
@@ -232,6 +220,18 @@ function Navbar({
               Cart ({cart.length})
             </button>
 
+            {user && (
+              <button
+                className="mobile-menu-link"
+                onClick={() => {
+                  navigate("/profile");
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                👤 My Profile
+              </button>
+            )}
+
             {user?.is_staff && (
               <button
                 className="mobile-menu-link"
@@ -242,18 +242,6 @@ function Navbar({
                 }}
               >
                 🛡️ Admin Dashboard
-              </button>
-            )}
-
-            {user && !user.is_staff && (
-              <button
-                className="mobile-menu-link"
-                onClick={() => {
-                  navigate("/profile");
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                👤 My Profile
               </button>
             )}
 

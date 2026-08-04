@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import api from "../../api/api";
+import ConfirmModal from "../../components/ConfirmModal";
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: "", message: "", confirmLabel: "", variant: "danger", onConfirm: () => {} });
 
   useEffect(() => {
     fetchUsers();
@@ -28,12 +30,23 @@ function AdminUsers() {
     }
   };
 
-  const handleToggleStaff = async (user) => {
+  const handleToggleStaff = (user) => {
     const newStatus = !user.is_staff;
     const confirmMsg = newStatus
       ? `Grant Admin privileges to ${user.email}?`
       : `Revoke Admin privileges from ${user.email}?`;
-    if (!window.confirm(confirmMsg)) return;
+    setConfirmModal({
+      isOpen: true,
+      title: newStatus ? "Grant Admin Privileges" : "Revoke Admin Privileges",
+      message: confirmMsg,
+      confirmLabel: newStatus ? "Grant" : "Revoke",
+      variant: newStatus ? "primary" : "warning",
+      onConfirm: () => executeToggleStaff(user, newStatus),
+    });
+  };
+
+  const executeToggleStaff = async (user, newStatus) => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
 
     setActionLoadingId(user.id);
     try {
@@ -52,12 +65,23 @@ function AdminUsers() {
     }
   };
 
-  const handleToggleActive = async (user) => {
+  const handleToggleActive = (user) => {
     const newStatus = !user.is_active;
     const confirmMsg = newStatus
       ? `Re-activate account for ${user.email}?`
       : `Suspend account for ${user.email}?`;
-    if (!window.confirm(confirmMsg)) return;
+    setConfirmModal({
+      isOpen: true,
+      title: newStatus ? "Re-activate Account" : "Suspend Account",
+      message: confirmMsg,
+      confirmLabel: newStatus ? "Activate" : "Suspend",
+      variant: newStatus ? "primary" : "warning",
+      onConfirm: () => executeToggleActive(user, newStatus),
+    });
+  };
+
+  const executeToggleActive = async (user, newStatus) => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
 
     setActionLoadingId(user.id);
     try {
@@ -76,8 +100,19 @@ function AdminUsers() {
     }
   };
 
-  const handleDeleteUser = async (user) => {
-    if (!window.confirm(`Permanently delete account for "${user.email}"? This action cannot be undone.`)) return;
+  const handleDeleteUser = (user) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete User Account",
+      message: `Permanently delete account for "${user.email}"? This action cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+      onConfirm: () => executeDeleteUser(user),
+    });
+  };
+
+  const executeDeleteUser = async (user) => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
 
     setActionLoadingId(user.id);
     try {
@@ -211,6 +246,16 @@ function AdminUsers() {
           </table>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        variant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
