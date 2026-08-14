@@ -42,7 +42,7 @@ export function FullPageLoader({ message = "Loading Shoekave..." }) {
           <span className="brand-name">SHOEKAVE</span>
         </div>
         <div className="loader-spinner-wrapper">
-          <Spinner size={36} color="var(--accent-color, #ef4444)" />
+          <Spinner size={36} color="var(--accent-color, #D4AF37)" />
         </div>
         <p className="loader-message">{message}</p>
       </div>
