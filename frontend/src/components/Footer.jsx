@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ShoeLogo from './ShoeLogo';
 
 function Footer() {
   const navigate = useNavigate();
@@ -26,8 +27,9 @@ function Footer() {
         <div className="container">
           <div className="footer-content">
             <div className="footer-brand">
-              <h3 style={{ cursor: "pointer" }} onClick={() => { navigate('/'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                Shoe<span>Kave</span>
+              <h3 style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.6rem" }} onClick={() => { navigate('/'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <ShoeLogo size={28} />
+                <span>Shoe<span>Kave</span></span>
               </h3>
               <p>Elevate your everyday style with our premium collection of footwear. Designed for comfort, built for greatness.</p>
             </div>

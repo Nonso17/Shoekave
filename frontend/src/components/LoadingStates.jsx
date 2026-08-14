@@ -1,4 +1,5 @@
 import React from "react";
+import ShoeLogo from "./ShoeLogo";
 
 // Reusable SVG Spinner Component
 export function Spinner({ size = 20, color = "currentColor", className = "" }) {
@@ -37,7 +38,7 @@ export function FullPageLoader({ message = "Loading Shoekave..." }) {
     <div className="full-page-loader">
       <div className="full-page-loader-card">
         <div className="loader-brand-logo">
-          <span className="brand-shoe-icon">👟</span>
+          <ShoeLogo size={36} />
           <span className="brand-name">SHOEKAVE</span>
         </div>
         <div className="loader-spinner-wrapper">

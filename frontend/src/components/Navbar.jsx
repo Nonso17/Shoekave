@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ShoeLogo from "./ShoeLogo";
 
 function Navbar({
   cart,
@@ -37,9 +38,10 @@ function Navbar({
         <div
           className="navbar-logo"
           onClick={() => navigate("/")}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.6rem" }}
         >
-          Shoe<span>Kave</span>
+          <ShoeLogo size={32} />
+          <span>Shoe<span>Kave</span></span>
         </div>
 
         {/* Desktop Categories */}

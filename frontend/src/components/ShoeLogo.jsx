@@ -1,0 +1,37 @@
+import React from 'react';
+
+function ShoeLogo({ size = 32, className = "", style = {} }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`shoekave-brand-logo ${className}`}
+      style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0, ...style }}
+    >
+      <defs>
+        <linearGradient id="skGradientComp" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="50%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#3b82f6" />
+        </linearGradient>
+        <linearGradient id="skAccentComp" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#a855f7" />
+          <stop offset="100%" stopColor="#ec4899" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="16" fill="url(#skGradientComp)"/>
+      <path d="M10 44C10 42.8954 10.8954 42 12 42H52C53.1046 42 54 42.8954 54 44V46C54 47.1046 53.1046 48 52 48H12C10.8954 48 10 47.1046 10 46V44Z" fill="white" />
+      <path d="M14 42H50V40H14V42Z" fill="#e2e8f0" />
+      <path d="M12 40C12 40 14.5 32 19 30C23 28.2222 26 29 29.5 24C32.5 19.7143 34.5 16 38.5 16C42.5 16 44 19 42.5 23.5C41.2 27.4 43 30 46 32.5C49 35 52 36.5 52 40H12Z" fill="white" />
+      <path d="M16 38C22 38 31 36 38 29C44 23 42 20 40 22C35 27 26 32 16 33V38Z" fill="url(#skAccentComp)" />
+      <line x1="28" y1="26" x2="33" y2="29" stroke="url(#skGradientComp)" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="31" y1="22" x2="36" y2="25" stroke="url(#skGradientComp)" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="34" y1="18" x2="39" y2="21" stroke="url(#skGradientComp)" strokeWidth="2.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+export default ShoeLogo;
