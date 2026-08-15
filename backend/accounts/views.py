@@ -14,7 +14,9 @@ from .serializers import (
     ProfileSerializer,
     UserManagementSerializer,
 )
-from .emails import send_brevo_email, send_welcome_email
+from .emails import send_brevo_email, send_welcome_email, send_admin_password_reset_email
+from django.core.mail import send_mail
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -299,6 +301,94 @@ class PasswordResetConfirmView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class AdminPasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Admin email is required."}, status=400)
+
+        from .models import User
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "No administrative account found with this email address."},
+                status=404,
+            )
+
+        if not user.is_staff:
+            return Response(
+                {"error": "Account exists but does not have administrator privileges."},
+                status=403,
+            )
+
+        code = "".join(random.choices("0123456789", k=6))
+        user.reset_code = code
+        user.save()
+
+        try:
+            send_admin_password_reset_email(user, code)
+        except Exception as exc:
+            logger.error(f"Failed to send admin reset email to {user.email} via Brevo: {exc}")
+            return Response(
+                {"error": f"Failed to send verification code via Brevo: {str(exc)}"},
+                status=500,
+            )
+
+        return Response(
+            {"message": f"Verification code sent to {email} via Brevo."},
+            status=200,
+        )
+
+
+class AdminPasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        code = request.data.get("code")
+        new_password = request.data.get("new_password")
+
+        if not email or not code or not new_password:
+            return Response({"error": "Email, verification code, and new password are required."}, status=400)
+
+        from .models import User
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid request details."}, status=400)
+
+        if not user.is_staff:
+            return Response({"error": "Account does not have administrator privileges."}, status=403)
+
+        if not user.reset_code or user.reset_code != code:
+            return Response({"error": "Invalid or expired verification code."}, status=400)
+
+        user.set_password(new_password)
+        user.reset_code = None
+        user.save()
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                "message": "Admin password has been reset successfully.",
+                "admin": {
+                    "email": user.email,
+                    "name": user.first_name or "Admin",
+                },
+                "tokens": {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 
 

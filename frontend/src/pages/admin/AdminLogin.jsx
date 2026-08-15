@@ -129,6 +129,15 @@ function AdminLogin() {
                 )}
               </button>
             </div>
+            <div style={{ textAlign: "right", marginTop: "0.4rem", marginBottom: "1rem" }}>
+              <Link
+                to="/admin/forgot-password"
+                className="auth-switch-link"
+                style={{ fontSize: "0.85rem", color: "#818cf8" }}
+              >
+                Forgot admin password?
+              </Link>
+            </div>
           </div>
 
           <button
@@ -146,6 +155,7 @@ function AdminLogin() {
             </Link>
           </div>
         </form>
+
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import Checkout from "./pages/Checkout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLogin from "./pages/admin/AdminLogin";
+import AdminForgotPassword from "./pages/admin/AdminForgotPassword";
 import { FullPageLoader } from "./components/LoadingStates";
 import ForgotPassword from "./pages/ForgotPassword";
 
@@ -328,6 +329,11 @@ const clearCart = () => {
 <Route
 path="/admin/login"
 element={<AdminLogin />}
+/>
+
+<Route
+path="/admin/forgot-password"
+element={<AdminForgotPassword />}
 />
 
 <Route

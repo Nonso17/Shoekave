@@ -329,3 +329,100 @@ def send_order_confirmation_email(order):
         recipient_email=recipient_email,
         html_content=html_content,
     )
+
+
+def send_admin_password_reset_email(user, code):
+    """
+    Sends a security-styled password reset email to a staff admin using Brevo.
+    """
+    first_name = user.first_name or "Admin"
+    recipient_email = user.email
+
+    subject = "🛡️ ShoeKave Admin Control Panel — Password Reset Code"
+
+    text_content = (
+        f"Hi {first_name},\n\n"
+        f"You requested a password reset for your ShoeKave Admin Control Panel staff account.\n\n"
+        f"Your 6-digit verification code is: {code}\n\n"
+        f"If you did not request this password reset, please secure your account immediately or notify your system administrator.\n\n"
+        f"Best regards,\n"
+        f"ShoeKave Security Team"
+    )
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ShoeKave Admin Password Reset</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f8fafc;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 600px; background-color: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);" border="0" cellspacing="0" cellpadding="0">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 35px 30px; text-align: center; border-bottom: 2px solid #6366f1;">
+              <div style="font-size: 36px; margin-bottom: 8px;">🛡️</div>
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: 0.5px;">ShoeKave Control Panel</h1>
+              <p style="margin: 6px 0 0 0; color: #a5b4fc; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Admin Security Verification</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 35px 30px;">
+              <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 700;">Password Reset Request</h2>
+              <p style="margin: 0 0 20px 0; color: #cbd5e1; font-size: 15px; line-height: 1.6;">
+                Hello <strong>{first_name}</strong>, a request was received to reset the password for your administrator staff account (<code>{recipient_email}</code>).
+              </p>
+              
+              <!-- Code Card -->
+              <div style="background-color: #0f172a; border: 1px dashed #6366f1; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #94a3b8; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
+                <div style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #818cf8; font-family: monospace; padding: 10px 0;">
+                  {code}
+                </div>
+                <p style="margin: 10px 0 0 0; color: #64748b; font-size: 12px;">This code will expire once used.</p>
+              </div>
+
+              <div style="background-color: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 4px; padding: 14px; margin-bottom: 25px;">
+                <p style="margin: 0; color: #fca5a5; font-size: 13px; line-height: 1.5;">
+                  ⚠️ <strong>Security Note:</strong> Never share this code with anyone. ShoeKave staff will never ask for your code or password.
+                </p>
+              </div>
+
+              <p style="margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.6;">
+                If you did not initiate this request, you can safely ignore this email or notify system administrators.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0f172a; padding: 20px 30px; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px;">
+                ShoeKave Security & Administrative System
+              </p>
+              <p style="margin: 0; color: #475569; font-size: 11px;">
+                Automated security notification • Do not reply to this email
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    return send_brevo_email(
+        subject=subject,
+        text_content=text_content,
+        recipient_email=recipient_email,
+        html_content=html_content,
+    )
+
