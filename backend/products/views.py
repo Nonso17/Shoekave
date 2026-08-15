@@ -1,26 +1,42 @@
 import json
 import logging
 import requests
-from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.db.models import Prefetch
 
-from .models import Product, ProductImage, ProductSize, Brand, Category, Order
-from .serializers import ProductSerializer, ProductImageSerializer, OrderSerializer
-from accounts.emails import send_order_confirmation_email
+from django.conf import settings
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.parsers import (
+    MultiPartParser,
+    FormParser,
+    JSONParser,
+)
+
+from .models import (
+    Product,
+    ProductImage,
+    Brand,
+    Category,
+    Order,
+)
+from .serializers import (
+    ProductSerializer,
+    OrderSerializer,
+)
 from .pagination import ProductPagination
+from accounts.emails import send_order_confirmation_email
+
 logger = logging.getLogger(__name__)
 
 
-
-from rest_framework.generics import ListAPIView
+# ============================================================
+# PUBLIC PRODUCT VIEWS
+# ============================================================
 
 class ProductListView(ListAPIView):
+    permission_classes = []
     serializer_class = ProductSerializer
     pagination_class = ProductPagination
 
@@ -33,7 +49,6 @@ class ProductListView(ListAPIView):
         )
 
         brand = self.request.query_params.get("brand")
-
         if brand and brand.lower() != "all":
             queryset = queryset.filter(brand__name__iexact=brand)
 
@@ -41,6 +56,8 @@ class ProductListView(ListAPIView):
 
 
 class ProductDetailView(APIView):
+    permission_classes = []
+
     def get(self, request, pk):
         try:
             product = (
@@ -58,11 +75,19 @@ class ProductDetailView(APIView):
         serializer = ProductSerializer(product)
         return Response(serializer.data)
 
+
+# ============================================================
+# USER ORDER & CHECKOUT VIEWS
+# ============================================================
+
 class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = OrderSerializer(data=request.data, context={"request": request})
+        serializer = OrderSerializer(
+            data=request.data,
+            context={"request": request}
+        )
         if serializer.is_valid():
             order = serializer.save()
 
@@ -70,12 +95,15 @@ class CheckoutView(APIView):
             try:
                 send_order_confirmation_email(order)
             except Exception as exc:
-                logger.error(f"Failed to send order confirmation email for order #{order.id}: {exc}")
+                logger.error(
+                    f"Failed to send order confirmation email for order #{order.id}: {exc}"
+                )
 
             return Response(
                 OrderSerializer(order).data,
                 status=status.HTTP_201_CREATED
             )
+
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -86,9 +114,13 @@ class MyOrdersView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        orders = Order.objects.filter(
-            user=request.user
-        ).order_by("-created_at")
+        orders = (
+            Order.objects
+            .filter(user=request.user)
+            .select_related("user")
+            .prefetch_related("items__product__images")
+            .order_by("-created_at")
+        )
         serializer = OrderSerializer(
             orders,
             many=True
@@ -96,140 +128,9 @@ class MyOrdersView(APIView):
         return Response(serializer.data)
 
 
-class AdminProductListView(APIView):
-    permission_classes = [IsAdminUser]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get(self, request):
-        products = Product.objects.all().order_by("-id")
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        data = request.data.dict() if hasattr(request.data, 'dict') else request.data.copy()
-        
-        # Parse nested sizes JSON string if sent via FormData
-        if isinstance(data.get('sizes'), str):
-            try:
-                data['sizes'] = json.loads(data['sizes'])
-            except json.JSONDecodeError:
-                data['sizes'] = []
-
-        serializer = ProductSerializer(data=data)
-        if serializer.is_valid():
-            product = serializer.save()
-
-            # Handle image uploads
-            images = request.FILES.getlist('images') or request.FILES.getlist('image')
-            if not images and 'image' in request.FILES:
-                images = [request.FILES['image']]
-            
-            for img in images:
-                ProductImage.objects.create(product=product, image=img)
-
-            fresh_product = Product.objects.get(pk=product.pk)
-            return Response(ProductSerializer(fresh_product).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AdminProductDetailView(APIView):
-    permission_classes = [IsAdminUser]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_object(self, pk):
-        try:
-            return Product.objects.get(pk=pk)
-        except Product.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        product = self.get_object(pk)
-        if not product:
-            return Response({"error": "Product not found."}, status=404)
-        return Response(ProductSerializer(product).data)
-
-    def patch(self, request, pk):
-        product = self.get_object(pk)
-        if not product:
-            return Response({"error": "Product not found."}, status=404)
-
-        data = request.data.dict() if hasattr(request.data, 'dict') else request.data.copy()
-        
-        if isinstance(data.get('sizes'), str):
-            try:
-                data['sizes'] = json.loads(data['sizes'])
-            except json.JSONDecodeError:
-                pass
-
-        serializer = ProductSerializer(product, data=data, partial=True)
-        if serializer.is_valid():
-            product = serializer.save()
-
-            # Handle new image uploads
-            images = request.FILES.getlist('images') or request.FILES.getlist('image')
-            if not images and 'image' in request.FILES:
-                images = [request.FILES['image']]
-
-            for img in images:
-                ProductImage.objects.create(product=product, image=img)
-
-            fresh_product = Product.objects.get(pk=product.pk)
-            return Response(ProductSerializer(fresh_product).data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request, pk):
-        product = self.get_object(pk)
-        if not product:
-            return Response({"error": "Product not found."}, status=404)
-        product.delete()
-        return Response({"message": "Product deleted successfully."}, status=200)
-
-
-class BrandCategoryListView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        brands = list(Brand.objects.values_list("name", flat=True))
-        categories = list(Category.objects.values_list("name", flat=True))
-        return Response({
-            "brands": brands,
-            "categories": categories
-        })
-
-
-class PublicBrandListView(APIView):
-    permission_classes = []
-
-    def get(self, request):
-        brands = list(Brand.objects.values_list("name", flat=True))
-        return Response(brands)
-
-
-class AdminOrderListView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        orders = Order.objects.all().order_by("-created_at")
-        serializer = OrderSerializer(orders, many=True)
-        return Response(serializer.data)
-
-
-class AdminOrderDetailView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def patch(self, request, pk):
-        try:
-            order = Order.objects.get(pk=pk)
-        except Order.DoesNotExist:
-            return Response({"error": "Order not found."}, status=404)
-
-        new_status = request.data.get("status")
-        if new_status and new_status in dict(Order.STATUS_CHOICES):
-            order.status = new_status
-            order.save()
-            return Response(OrderSerializer(order).data)
-        
-        return Response({"error": "Invalid order status."}, status=400)
+# ============================================================
+# PAYSTACK PAYMENT VIEWS
+# ============================================================
 
 class InitializePaymentView(APIView):
     permission_classes = [IsAuthenticated]
@@ -239,7 +140,10 @@ class InitializePaymentView(APIView):
         amount = request.data.get("amount")
         order_id = request.data.get("order_id")
         if not amount:
-            return Response({"error": "Amount is required."}, status=400)
+            return Response(
+                {"error": "Amount is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         url = "https://api.paystack.co/transaction/initialize"
 
@@ -269,10 +173,16 @@ class InitializePaymentView(APIView):
                 json=data,
                 headers=headers
             )
-            result = response.json()
+            try:
+                result = response.json()
+            except ValueError:
+                result = {"error": "Invalid response from payment gateway"}
             return Response(result, status=response.status_code)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class VerifyPaymentView(APIView):
@@ -290,7 +200,10 @@ class VerifyPaymentView(APIView):
                 url,
                 headers=headers
             )
-            result = response.json()
+            try:
+                result = response.json()
+            except ValueError:
+                result = {"error": "Invalid response from payment gateway"}
 
             # Automatically update order status to "Processing" if payment verified successfully
             if result.get("status") and result.get("data", {}).get("status") == "success":
@@ -307,4 +220,350 @@ class VerifyPaymentView(APIView):
 
             return Response(result, status=response.status_code)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# ============================================================
+# ADMIN PRODUCT VIEWS
+# ============================================================
+
+class AdminProductListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
+
+    def get(self, request):
+        products = (
+            Product.objects
+            .select_related(
+                "brand",
+                "category"
+            )
+            .prefetch_related(
+                "sizes",
+                "images"
+            )
+            .order_by("-id")
+        )
+
+        serializer = ProductSerializer(
+            products,
+            many=True
+        )
+
+        return Response(serializer.data)
+
+    def post(self, request):
+        data = (
+            request.data.dict()
+            if hasattr(request.data, "dict")
+            else request.data.copy()
+        )
+
+        # Parse nested sizes JSON string if sent via FormData
+        if isinstance(data.get("sizes"), str):
+            try:
+                data["sizes"] = json.loads(
+                    data["sizes"]
+                )
+            except json.JSONDecodeError:
+                data["sizes"] = []
+
+        serializer = ProductSerializer(
+            data=data
+        )
+
+        if serializer.is_valid():
+            product = serializer.save()
+
+            # Handle image uploads
+            images = (
+                request.FILES.getlist("images")
+                or request.FILES.getlist("image")
+            )
+
+            if not images and "image" in request.FILES:
+                images = [
+                    request.FILES["image"]
+                ]
+
+            for img in images:
+                ProductImage.objects.create(
+                    product=product,
+                    image=img
+                )
+
+            # Reload product with related objects
+            fresh_product = (
+                Product.objects
+                .select_related(
+                    "brand",
+                    "category"
+                )
+                .prefetch_related(
+                    "sizes",
+                    "images"
+                )
+                .get(pk=product.pk)
+            )
+
+            return Response(
+                ProductSerializer(
+                    fresh_product
+                ).data,
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class AdminProductDetailView(APIView):
+    permission_classes = [IsAdminUser]
+
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+        JSONParser,
+    ]
+
+    def get_object(self, pk):
+        try:
+            return (
+                Product.objects
+                .select_related(
+                    "brand",
+                    "category"
+                )
+                .prefetch_related(
+                    "sizes",
+                    "images"
+                )
+                .get(pk=pk)
+            )
+        except Product.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        product = self.get_object(pk)
+
+        if not product:
+            return Response(
+                {"error": "Product not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(
+            ProductSerializer(product).data
+        )
+
+    def patch(self, request, pk):
+        product = self.get_object(pk)
+
+        if not product:
+            return Response(
+                {"error": "Product not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        data = (
+            request.data.dict()
+            if hasattr(request.data, "dict")
+            else request.data.copy()
+        )
+
+        if isinstance(data.get("sizes"), str):
+            try:
+                data["sizes"] = json.loads(
+                    data["sizes"]
+                )
+            except json.JSONDecodeError:
+                pass
+
+        serializer = ProductSerializer(
+            product,
+            data=data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            product = serializer.save()
+
+            # Handle new image uploads
+            images = (
+                request.FILES.getlist("images")
+                or request.FILES.getlist("image")
+            )
+
+            if not images and "image" in request.FILES:
+                images = [
+                    request.FILES["image"]
+                ]
+
+            for img in images:
+                ProductImage.objects.create(
+                    product=product,
+                    image=img
+                )
+
+            # Reload with related objects
+            fresh_product = (
+                Product.objects
+                .select_related(
+                    "brand",
+                    "category"
+                )
+                .prefetch_related(
+                    "sizes",
+                    "images"
+                )
+                .get(pk=product.pk)
+            )
+
+            return Response(
+                ProductSerializer(
+                    fresh_product
+                ).data
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, pk):
+        product = self.get_object(pk)
+
+        if not product:
+            return Response(
+                {"error": "Product not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        product.delete()
+
+        return Response(
+            {
+                "message":
+                "Product deleted successfully."
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class BrandCategoryListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        brands = list(
+            Brand.objects.values_list(
+                "name",
+                flat=True
+            )
+        )
+
+        categories = list(
+            Category.objects.values_list(
+                "name",
+                flat=True
+            )
+        )
+
+        return Response({
+            "brands": brands,
+            "categories": categories
+        })
+
+
+class PublicBrandListView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        brands = list(
+            Brand.objects.values_list(
+                "name",
+                flat=True
+            )
+        )
+
+        return Response(brands)
+
+
+# ============================================================
+# ADMIN ORDER VIEWS
+# ============================================================
+
+class AdminOrderListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        orders = (
+            Order.objects
+            .select_related("user")
+            .prefetch_related(
+                "items__product__images"
+            )
+            .order_by("-created_at")
+        )
+
+        serializer = OrderSerializer(
+            orders,
+            many=True
+        )
+
+        return Response(serializer.data)
+
+
+class AdminOrderDetailView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, pk):
+        try:
+            order = (
+                Order.objects
+                .select_related("user")
+                .prefetch_related(
+                    "items__product__images"
+                )
+                .get(pk=pk)
+            )
+
+        except Order.DoesNotExist:
+            return Response(
+                {"error": "Order not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        new_status = request.data.get(
+            "status"
+        )
+
+        if (
+            new_status
+            and new_status in dict(
+                Order.STATUS_CHOICES
+            )
+        ):
+            order.status = new_status
+            order.save()
+
+            return Response(
+                OrderSerializer(order).data
+            )
+
+        return Response(
+            {
+                "error":
+                "Invalid order status."
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
