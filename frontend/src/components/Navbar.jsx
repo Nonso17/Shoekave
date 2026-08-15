@@ -16,21 +16,29 @@ function Navbar({
   const navigate = useNavigate();
 
   const handleBrandSelect = (brand) => {
-  setFilterBrand(brand);
+    setFilterBrand(brand);
 
-  navigate("/");
+    navigate("/");
 
-  setIsDropdownOpen(false);
-  setIsMobileMenuOpen(false);
+    setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
 
-  setTimeout(() => {
-    document
-      .getElementById("collection")
-      ?.scrollIntoView({
-        behavior: "smooth",
-      });
-  }, 100);
-};
+    setTimeout(() => {
+      document
+        .getElementById("collection")
+        ?.scrollIntoView({
+          behavior: "smooth",
+        });
+    }, 100);
+  };
+
+  const handleHomeClick = () => {
+    setFilterBrand("All");
+    navigate("/");
+    setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <header className="navbar">
@@ -47,11 +55,12 @@ function Navbar({
         {/* Desktop Categories */}
         <div className="navbar-center desktop-only">
           <Link
-  to="/"
-  className="nav-link"
->
-  Home
-</Link>
+            to="/"
+            className="nav-link"
+            onClick={() => setFilterBrand("All")}
+          >
+            Home
+          </Link>
           <div
             className="dropdown-container"
             onMouseEnter={() => setIsDropdownOpen(true)}
@@ -195,23 +204,14 @@ function Navbar({
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="mobile-menu animate-fade-in">
-          <div className="mobile-categories">
-            <h3>Brands</h3>
-
-            {brands.map((brand) => (
-  <button
-    key={brand}
-    className={`mobile-menu-link ${
-      filterBrand === brand ? "active" : ""
-    }`}
-    onClick={() => handleBrandSelect(brand)}
-  >
-    {brand}
-  </button>
-))}
-          </div>
-
           <div className="mobile-actions">
+            <button
+              className="mobile-menu-link"
+              onClick={handleHomeClick}
+            >
+              Home
+            </button>
+
             <button
               className="mobile-menu-link"
               onClick={() => {
@@ -268,6 +268,22 @@ function Navbar({
                 Log In / Sign Up
               </button>
             )}
+          </div>
+
+          <div className="mobile-categories">
+            <h3>Brands</h3>
+
+            {brands.map((brand) => (
+              <button
+                key={brand}
+                className={`mobile-menu-link ${
+                  filterBrand === brand ? "active" : ""
+                }`}
+                onClick={() => handleBrandSelect(brand)}
+              >
+                {brand}
+              </button>
+            ))}
           </div>
         </div>
       )}
