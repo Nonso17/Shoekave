@@ -57,6 +57,8 @@ def send_welcome_email(user):
     first_name = user.first_name or "Friend"
     recipient_email = user.email
 
+    frontend_url = getattr(settings, "FRONTEND_URL", "https://shoekave.com").rstrip("/")
+
     subject = "Welcome to ShoeKave! 👟"
 
     text_content = (
@@ -117,7 +119,7 @@ def send_welcome_email(user):
 
               <!-- CTA Button -->
               <div style="text-align: center; margin: 30px 0 10px 0;">
-                <a href="http://localhost:5173/" target="_blank" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);">
+                <a href="{frontend_url}/" target="_blank" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);">
                   Start Shopping Now
                 </a>
               </div>

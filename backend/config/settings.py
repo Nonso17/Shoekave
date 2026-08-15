@@ -210,6 +210,9 @@ DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", default="ShoeKave <yungmartin
 # Brevo API key (falls back to EMAIL_HOST_PASSWORD if not provided)
 BREVO_API_KEY = get_env("BREVO_API_KEY", default=get_env("EMAIL_HOST_PASSWORD", default=""))
 
+# Frontend URL for email links and callbacks
+FRONTEND_URL = get_env("FRONTEND_URL", default="https://shoekave.com")
+
 # Optional SSL flag (some SMTP providers use SSL on port 465)
 EMAIL_USE_SSL = get_env("EMAIL_USE_SSL", default=False, cast=bool)
 

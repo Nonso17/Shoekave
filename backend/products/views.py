@@ -152,9 +152,10 @@ class InitializePaymentView(APIView):
             "Content-Type": "application/json",
         }
 
+        frontend_url = getattr(settings, "FRONTEND_URL", "https://shoekave.com").rstrip("/")
         callback_url = request.data.get(
             "callback_url",
-            "http://localhost:5173/payment/success"
+            f"{frontend_url}/payment/success"
         )
 
         data = {
