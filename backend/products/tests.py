@@ -137,6 +137,10 @@ class ProductEndpointsTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Order.objects.count(), 1)
         self.assertEqual(OrderItem.objects.count(), 1)
+        created_order = Order.objects.get(id=response.data["id"])
+        self.assertEqual(created_order.status, "Pending")
+        # Ensure email is NOT sent at initial checkout creation
+        mock_send_email.assert_not_called()
 
     def test_9_get_my_orders(self):
         Order.objects.create(
@@ -154,22 +158,67 @@ class ProductEndpointsTests(APITestCase):
 
     @patch("products.views.requests.post")
     def test_10_post_initialize_payment(self, mock_post):
+        order = Order.objects.create(
+            user=self.user,
+            total_amount="120.00",
+            shipping_address="123 Main St",
+            phone_number="1234567890",
+            city="Lagos",
+            status="Pending"
+        )
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "status": True,
             "message": "Authorization URL created",
             "data": {
-                "authorization_url": "https://checkout.paystack.com/access_code",
-                "access_code": "access_code",
-                "reference": "ref_123"
+                "checkout_url": "https://checkout.korapay.com/access_code",
+                "authorization_url": "https://checkout.korapay.com/access_code",
+                "reference": f"SK-{order.id}-123456"
             }
         }
         url = "/api/products/payment/initialize/"
         self.client.force_authenticate(user=self.user)
         payload = {
             "amount": 120.00,
-            "order_id": 1
+            "order_id": order.id
         }
         response = self.client.post(url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["status"])
+
+    @patch("products.views.send_order_confirmation_email")
+    def test_11_process_order_payment_success_idempotency(self, mock_send_email):
+        from products.views import process_order_payment_success
+        order = Order.objects.create(
+            user=self.user,
+            total_amount="120.00",
+            shipping_address="123 Main St",
+            phone_number="1234567890",
+            city="Lagos",
+            status="Pending"
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            size=42,
+            quantity=2,
+            price="120.00"
+        )
+
+        initial_size_stock = ProductSize.objects.get(product=self.product, size=42).stock
+        self.assertEqual(initial_size_stock, 10)
+
+        # First verification call: Should mark Processing, deduct stock, send email
+        order_obj, processed = process_order_payment_success(order.id, user=self.user, payment_method="Kora")
+        self.assertTrue(processed)
+        self.assertEqual(order_obj.status, "Processing")
+        self.assertEqual(ProductSize.objects.get(product=self.product, size=42).stock, 8)
+        self.assertEqual(mock_send_email.call_count, 1)
+
+        # Second duplicate verification call (webhook retry / duplicate tab): Should return False, not deduct stock again or send 2nd email
+        order_obj_repeat, processed_repeat = process_order_payment_success(order.id, user=self.user, payment_method="Kora")
+        self.assertFalse(processed_repeat)
+        self.assertEqual(order_obj_repeat.status, "Processing")
+        self.assertEqual(ProductSize.objects.get(product=self.product, size=42).stock, 8)
+        self.assertEqual(mock_send_email.call_count, 1)
+

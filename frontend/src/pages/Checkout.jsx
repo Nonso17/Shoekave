@@ -72,30 +72,37 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
       };
 
       const response = await api.post("products/checkout/", orderData);
-      console.log("Order created successfully:", response.data);
+      console.log("Unpaid order created successfully:", response.data);
+      const createdOrderId = response.data?.id;
 
-      setSuccessMsg("Order created! Redirecting to Kora payment gateway...");
-      const initRes = await api.post("products/payment/initialize/", {
-        amount: cartTotal,
-        order_id: response.data?.id,
-        callback_url: `${window.location.origin}/payment/success`,
-      });
+      setSuccessMsg("Order placed! Initializing Kora payment gateway...");
+      
+      try {
+        const initRes = await api.post("products/payment/initialize/", {
+          amount: cartTotal,
+          order_id: createdOrderId,
+          callback_url: `${window.location.origin}/payment/success`,
+        });
 
-      const checkoutUrl = initRes.data?.data?.checkout_url || initRes.data?.data?.authorization_url;
-      if (initRes.data && initRes.data.status && checkoutUrl) {
-        window.location.href = checkoutUrl;
-        return;
-      } else {
-        setErrorMsg(initRes.data?.message || "Failed to initialize Kora payment. Please try again.");
+        const checkoutUrl = initRes.data?.data?.checkout_url || initRes.data?.data?.authorization_url;
+        if (initRes.data && initRes.data.status && checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        } else {
+          const initError = initRes.data?.error || initRes.data?.message || "Failed to initialize payment gateway. Please try again.";
+          setSuccessMsg("");
+          setErrorMsg(initError);
+          setLoading(false);
+          return;
+        }
+      } catch (initErr) {
+        console.error("Payment initialization error:", initErr.response?.data || initErr.message);
+        const serverErr = initErr.response?.data?.error || initErr.response?.data?.message || "Payment initialization failed. Please try again.";
+        setSuccessMsg("");
+        setErrorMsg(serverErr);
         setLoading(false);
         return;
       }
-    } catch (error) {
-      console.error("Order submission error:", error.response?.data || error.message);
-      const serverErr = error.response?.data?.error || error.response?.data?.detail || "Order submission failed. Please try again.";
-      setErrorMsg(serverErr);
-      setLoading(false);
-    }
   };
 
   if (!cart || cart.length === 0) {

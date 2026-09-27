@@ -6,6 +6,7 @@ import hashlib
 import time
 
 from django.conf import settings
+from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -93,15 +94,12 @@ class CheckoutView(APIView):
             context={"request": request}
         )
         if serializer.is_valid():
+            # Save order with default 'Pending' (unpaid) status
             order = serializer.save()
 
-            # Send Order Confirmation Email via Brevo
-            try:
-                send_order_confirmation_email(order)
-            except Exception as exc:
-                logger.error(
-                    f"Failed to send order confirmation email for order #{order.id}: {exc}"
-                )
+            # NOTE: Do NOT send order confirmation email here!
+            # The order is created as pending/unpaid. Confirmation email and stock
+            # deduction will ONLY happen once payment is successfully verified.
 
             return Response(
                 OrderSerializer(order).data,
@@ -138,43 +136,55 @@ class MyOrdersView(APIView):
 
 def process_order_payment_success(order_id, user=None, payment_method="Kora"):
     """
-    Idempotent order status update & stock deduction on verified successful payment.
+    Atomic & idempotent order status update, stock deduction, and email dispatch
+    upon verified successful payment.
     """
     try:
-        query = {"pk": order_id}
-        if user and not user.is_staff:
-            query["user"] = user
-        order = Order.objects.get(**query)
+        with transaction.atomic():
+            query = {"pk": order_id}
+            if user and not user.is_staff:
+                query["user"] = user
 
-        # Only process if status is Pending (idempotency check)
-        if order.status == "Pending":
-            order.status = "Processing"
-            if payment_method:
-                order.payment_method = payment_method
-            order.save()
+            # Lock the order row to guarantee idempotency across concurrent webhooks / client verifications
+            order = Order.objects.select_for_update().get(**query)
 
-            # Deduct stock for each item in the order
-            for item in order.items.select_related("product").all():
+            # Only process if status is still Pending (unpaid)
+            if order.status == "Pending":
+                order.status = "Processing"
+                if payment_method:
+                    order.payment_method = payment_method
+                order.save()
+
+                # Deduct stock for each item in the order
+                for item in order.items.select_related("product").all():
+                    try:
+                        product_size = ProductSize.objects.select_for_update().get(
+                            product=item.product,
+                            size=item.size
+                        )
+                        if product_size.stock >= item.quantity:
+                            product_size.stock -= item.quantity
+                        else:
+                            product_size.stock = 0
+                        product_size.save()
+
+                        # Recalculate total stock for the product
+                        total_stock = sum(ps.stock for ps in item.product.sizes.all())
+                        item.product.stock = total_stock
+                        item.product.save()
+                    except ProductSize.DoesNotExist:
+                        pass
+
+                # Dispatch Order Confirmation Email via Brevo now that payment is confirmed
                 try:
-                    product_size = ProductSize.objects.get(
-                        product=item.product,
-                        size=item.size
+                    send_order_confirmation_email(order)
+                except Exception as exc:
+                    logger.error(
+                        f"Failed to send order confirmation email for order #{order.id}: {exc}"
                     )
-                    if product_size.stock >= item.quantity:
-                        product_size.stock -= item.quantity
-                    else:
-                        product_size.stock = 0
-                    product_size.save()
 
-                    # Recalculate total stock for the product
-                    total_stock = sum(ps.stock for ps in item.product.sizes.all())
-                    item.product.stock = total_stock
-                    item.product.save()
-                except ProductSize.DoesNotExist:
-                    pass
-
-            return order, True
-        return order, False
+                return order, True
+            return order, False
     except Order.DoesNotExist:
         return None, False
 
@@ -193,14 +203,35 @@ class KoraInitializePaymentView(APIView):
 
         if not amount:
             return Response(
-                {"error": "Amount is required."},
+                {"error": "Amount is required.", "status": False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not order_id:
+            return Response(
+                {"error": "Order ID is required.", "status": False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify that the order exists, belongs to the current user, and is unpaid/pending
+        try:
+            order = Order.objects.get(pk=order_id, user=request.user)
+        except Order.DoesNotExist:
+            return Response(
+                {"error": "Order not found.", "status": False},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if order.status != "Pending":
+            return Response(
+                {"error": f"Order #{order_id} cannot be initialized (status is '{order.status}').", "status": False},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         secret_key = getattr(settings, "KORA_SECRET_KEY", "")
         if not secret_key:
             return Response(
-                {"error": "Kora API Secret Key is not configured on server."},
+                {"error": "Kora API Secret Key is not configured on server.", "status": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -217,7 +248,7 @@ class KoraInitializePaymentView(APIView):
             f"{frontend_url}/payment/success"
         )
 
-        ref_prefix = f"SK-{order_id}" if order_id else "SK"
+        ref_prefix = f"SK-{order_id}"
         reference = f"{ref_prefix}-{int(time.time())}"
 
         data = {
@@ -232,7 +263,7 @@ class KoraInitializePaymentView(APIView):
             "metadata": {
                 "order_id": order_id,
                 "user_id": request.user.id
-            } if order_id else {}
+            }
         }
 
         try:
@@ -245,7 +276,7 @@ class KoraInitializePaymentView(APIView):
             try:
                 result = response.json()
             except ValueError:
-                result = {"error": "Invalid response from Kora payment gateway"}
+                result = {"error": "Invalid response from Kora payment gateway", "status": False}
 
             # Standardize output for compatibility with frontend authorization_url / checkout_url
             if isinstance(result, dict) and result.get("status") and "data" in result:
@@ -258,7 +289,7 @@ class KoraInitializePaymentView(APIView):
         except Exception as e:
             logger.error(f"Kora payment initialization error: {e}")
             return Response(
-                {"error": str(e)},
+                {"error": str(e), "status": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -270,7 +301,7 @@ class KoraVerifyPaymentView(APIView):
         secret_key = getattr(settings, "KORA_SECRET_KEY", "")
         if not secret_key:
             return Response(
-                {"error": "Kora API Secret Key is not configured on server."},
+                {"error": "Kora API Secret Key is not configured on server.", "status": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -289,10 +320,10 @@ class KoraVerifyPaymentView(APIView):
             try:
                 result = response.json()
             except ValueError:
-                result = {"error": "Invalid response from Kora payment gateway"}
+                result = {"error": "Invalid response from Kora payment gateway", "status": False}
 
             # Automatically process order status to "Processing" if payment verified successfully
-            if result.get("status") and result.get("data", {}).get("status") == "success":
+            if isinstance(result, dict) and result.get("status") and result.get("data", {}).get("status") == "success":
                 metadata = result.get("data", {}).get("metadata", {})
                 order_id = metadata.get("order_id") if isinstance(metadata, dict) else None
 
@@ -303,12 +334,28 @@ class KoraVerifyPaymentView(APIView):
 
                 if order_id:
                     process_order_payment_success(order_id, user=request.user, payment_method="Kora")
+            elif isinstance(result, dict) and result.get("data", {}).get("status") in ["failed", "expired", "cancelled"]:
+                metadata = result.get("data", {}).get("metadata", {})
+                order_id = metadata.get("order_id") if isinstance(metadata, dict) else None
+                if not order_id and reference and reference.startswith("SK-"):
+                    parts = reference.split("-")
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        order_id = int(parts[1])
+
+                if order_id:
+                    try:
+                        order = Order.objects.get(pk=order_id)
+                        if order.status == "Pending":
+                            order.status = "Cancelled"
+                            order.save()
+                    except Order.DoesNotExist:
+                        pass
 
             return Response(result, status=response.status_code)
         except Exception as e:
             logger.error(f"Kora payment verification error: {e}")
             return Response(
-                {"error": str(e)},
+                {"error": str(e), "status": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
