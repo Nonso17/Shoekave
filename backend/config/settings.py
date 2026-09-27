@@ -103,6 +103,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 PAYSTACK_SECRET_KEY = get_env("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_PUBLIC_KEY = get_env("PAYSTACK_PUBLIC_KEY", default="")
 
+KORA_SECRET_KEY = get_env("KORA_SECRET_KEY", default="")
+KORA_PUBLIC_KEY = get_env("KORA_PUBLIC_KEY", default="")
+
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases

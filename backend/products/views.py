@@ -1,6 +1,9 @@
 import json
 import logging
 import requests
+import hmac
+import hashlib
+import time
 
 from django.conf import settings
 from rest_framework import status
@@ -17,6 +20,7 @@ from rest_framework.parsers import (
 from .models import (
     Product,
     ProductImage,
+    ProductSize,
     Brand,
     Category,
     Order,
@@ -129,10 +133,292 @@ class MyOrdersView(APIView):
 
 
 # ============================================================
-# PAYSTACK PAYMENT VIEWS
+# ORDER PAYMENT & STOCK HELPER
 # ============================================================
 
-class InitializePaymentView(APIView):
+def process_order_payment_success(order_id, user=None, payment_method="Kora"):
+    """
+    Idempotent order status update & stock deduction on verified successful payment.
+    """
+    try:
+        query = {"pk": order_id}
+        if user and not user.is_staff:
+            query["user"] = user
+        order = Order.objects.get(**query)
+
+        # Only process if status is Pending (idempotency check)
+        if order.status == "Pending":
+            order.status = "Processing"
+            if payment_method:
+                order.payment_method = payment_method
+            order.save()
+
+            # Deduct stock for each item in the order
+            for item in order.items.select_related("product").all():
+                try:
+                    product_size = ProductSize.objects.get(
+                        product=item.product,
+                        size=item.size
+                    )
+                    if product_size.stock >= item.quantity:
+                        product_size.stock -= item.quantity
+                    else:
+                        product_size.stock = 0
+                    product_size.save()
+
+                    # Recalculate total stock for the product
+                    total_stock = sum(ps.stock for ps in item.product.sizes.all())
+                    item.product.stock = total_stock
+                    item.product.save()
+                except ProductSize.DoesNotExist:
+                    pass
+
+            return order, True
+        return order, False
+    except Order.DoesNotExist:
+        return None, False
+
+
+# ============================================================
+# KORA (KORAPAY) PAYMENT VIEWS
+# ============================================================
+
+class KoraInitializePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        email = request.user.email
+        amount = request.data.get("amount")
+        order_id = request.data.get("order_id")
+
+        if not amount:
+            return Response(
+                {"error": "Amount is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        secret_key = getattr(settings, "KORA_SECRET_KEY", "")
+        if not secret_key:
+            return Response(
+                {"error": "Kora API Secret Key is not configured on server."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        url = "https://api.korapay.com/merchant/api/v1/charges/initialize"
+
+        headers = {
+            "Authorization": f"Bearer {secret_key}",
+            "Content-Type": "application/json",
+        }
+
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173").rstrip("/")
+        callback_url = request.data.get(
+            "callback_url",
+            f"{frontend_url}/payment/success"
+        )
+
+        ref_prefix = f"SK-{order_id}" if order_id else "SK"
+        reference = f"{ref_prefix}-{int(time.time())}"
+
+        data = {
+            "amount": float(amount),
+            "currency": "NGN",
+            "reference": reference,
+            "customer": {
+                "name": f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email,
+                "email": email,
+            },
+            "redirect_url": callback_url,
+            "metadata": {
+                "order_id": order_id,
+                "user_id": request.user.id
+            } if order_id else {}
+        }
+
+        try:
+            response = requests.post(
+                url,
+                json=data,
+                headers=headers,
+                timeout=15
+            )
+            try:
+                result = response.json()
+            except ValueError:
+                result = {"error": "Invalid response from Kora payment gateway"}
+
+            # Standardize output for compatibility with frontend authorization_url / checkout_url
+            if isinstance(result, dict) and result.get("status") and "data" in result:
+                if isinstance(result["data"], dict):
+                    checkout_url = result["data"].get("checkout_url")
+                    if checkout_url and "authorization_url" not in result["data"]:
+                        result["data"]["authorization_url"] = checkout_url
+
+            return Response(result, status=response.status_code)
+        except Exception as e:
+            logger.error(f"Kora payment initialization error: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class KoraVerifyPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, reference):
+        secret_key = getattr(settings, "KORA_SECRET_KEY", "")
+        if not secret_key:
+            return Response(
+                {"error": "Kora API Secret Key is not configured on server."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        url = f"https://api.korapay.com/merchant/api/v1/charges/{reference}"
+
+        headers = {
+            "Authorization": f"Bearer {secret_key}",
+        }
+
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                timeout=15
+            )
+            try:
+                result = response.json()
+            except ValueError:
+                result = {"error": "Invalid response from Kora payment gateway"}
+
+            # Automatically process order status to "Processing" if payment verified successfully
+            if result.get("status") and result.get("data", {}).get("status") == "success":
+                metadata = result.get("data", {}).get("metadata", {})
+                order_id = metadata.get("order_id") if isinstance(metadata, dict) else None
+
+                if not order_id and reference and reference.startswith("SK-"):
+                    parts = reference.split("-")
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        order_id = int(parts[1])
+
+                if order_id:
+                    process_order_payment_success(order_id, user=request.user, payment_method="Kora")
+
+            return Response(result, status=response.status_code)
+        except Exception as e:
+            logger.error(f"Kora payment verification error: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class KoraWebhookView(APIView):
+    permission_classes = []
+    authentication_classes = []
+
+    def post(self, request):
+        x_signature = (
+            request.headers.get("x-korapay-signature")
+            or request.headers.get("X-Korapay-Signature")
+            or request.META.get("HTTP_X_KORAPAY_SIGNATURE")
+        )
+
+        secret_key = getattr(settings, "KORA_SECRET_KEY", "")
+        if not secret_key:
+            logger.error("KORA_SECRET_KEY is not configured for webhook signature verification.")
+            return Response(
+                {"error": "Server misconfiguration"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        if not x_signature:
+            logger.warning("Kora webhook received without x-korapay-signature header.")
+            return Response(
+                {"error": "Missing signature header"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Secure HMAC-SHA256 signature verification on raw request body
+        raw_body = request.body
+        computed_sig = hmac.new(
+            secret_key.encode("utf-8"),
+            raw_body,
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(computed_sig, x_signature):
+            logger.warning(f"Invalid Kora webhook signature. Received: {x_signature}")
+            return Response(
+                {"error": "Invalid signature"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except ValueError:
+            return Response(
+                {"error": "Invalid JSON body"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        event_type = payload.get("event")
+        event_data = payload.get("data", {})
+
+        reference = event_data.get("reference")
+        txn_status = event_data.get("status")
+        metadata = event_data.get("metadata", {})
+        order_id = metadata.get("order_id") if isinstance(metadata, dict) else None
+
+        if not order_id and reference and reference.startswith("SK-"):
+            parts = reference.split("-")
+            if len(parts) >= 2 and parts[1].isdigit():
+                order_id = int(parts[1])
+
+        # Double-Check Pattern: Verify charge status directly with Kora API server before granting order value
+        if (event_type == "charge.success" or txn_status == "success") and reference:
+            verify_url = f"https://api.korapay.com/merchant/api/v1/charges/{reference}"
+            headers = {"Authorization": f"Bearer {secret_key}"}
+            try:
+                verify_res = requests.get(verify_url, headers=headers, timeout=10)
+                if verify_res.status_code == 200:
+                    v_data = verify_res.json()
+                    v_status = v_data.get("data", {}).get("status") if v_data.get("status") else None
+                    if v_status != "success":
+                        logger.warning(f"Double-check verification failed for reference {reference}. Status: {v_status}")
+                        return Response(
+                            {"status": "ignored", "reason": "Verification failed"},
+                            status=status.HTTP_200_OK
+                        )
+            except Exception as exc:
+                logger.error(f"Kora double-check API error for reference {reference}: {exc}")
+
+            if order_id:
+                process_order_payment_success(order_id, payment_method="Kora")
+
+        elif txn_status in ["failed", "expired", "cancelled"]:
+            if order_id:
+                try:
+                    order = Order.objects.get(pk=order_id)
+                    if order.status == "Pending":
+                        order.status = "Cancelled"
+                        order.save()
+                except Order.DoesNotExist:
+                    pass
+
+        return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+
+# Set active payment gateway views to Kora
+InitializePaymentView = KoraInitializePaymentView
+VerifyPaymentView = KoraVerifyPaymentView
+
+
+# ============================================================
+# LEGACY PAYSTACK PAYMENT VIEWS (KEPT FOR RETENTION)
+# ============================================================
+
+class PaystackInitializePaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -146,7 +432,6 @@ class InitializePaymentView(APIView):
             )
 
         url = "https://api.paystack.co/transaction/initialize"
-
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json",
@@ -186,12 +471,11 @@ class InitializePaymentView(APIView):
             )
 
 
-class VerifyPaymentView(APIView):
+class PaystackVerifyPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, reference):
         url = f"https://api.paystack.co/transaction/verify/{reference}"
-
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
         }
@@ -206,18 +490,11 @@ class VerifyPaymentView(APIView):
             except ValueError:
                 result = {"error": "Invalid response from payment gateway"}
 
-            # Automatically update order status to "Processing" if payment verified successfully
             if result.get("status") and result.get("data", {}).get("status") == "success":
                 metadata = result.get("data", {}).get("metadata", {})
                 order_id = metadata.get("order_id") if isinstance(metadata, dict) else None
                 if order_id:
-                    try:
-                        order = Order.objects.get(pk=order_id, user=request.user)
-                        if order.status == "Pending":
-                            order.status = "Processing"
-                            order.save()
-                    except Order.DoesNotExist:
-                        pass
+                    process_order_payment_success(order_id, user=request.user, payment_method="Paystack")
 
             return Response(result, status=response.status_code)
         except Exception as e:

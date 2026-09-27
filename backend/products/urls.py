@@ -12,6 +12,11 @@ from .views import (
     AdminOrderDetailView,
     InitializePaymentView,
     VerifyPaymentView,
+    KoraInitializePaymentView,
+    KoraVerifyPaymentView,
+    KoraWebhookView,
+    PaystackInitializePaymentView,
+    PaystackVerifyPaymentView,
 )
 
 urlpatterns = [
@@ -27,4 +32,10 @@ urlpatterns = [
     path("admin/orders/<int:pk>/", AdminOrderDetailView.as_view()),
     path("payment/initialize/", InitializePaymentView.as_view(), name="payment-initialize"),
     path("payment/verify/<str:reference>/", VerifyPaymentView.as_view(), name="payment-verify"),
+    path("payment/kora/initialize/", KoraInitializePaymentView.as_view(), name="kora-payment-initialize"),
+    path("payment/kora/verify/<str:reference>/", KoraVerifyPaymentView.as_view(), name="kora-payment-verify"),
+    path("payment/kora/webhook/", KoraWebhookView.as_view(), name="kora-webhook"),
+    path("payment/webhook/", KoraWebhookView.as_view(), name="payment-webhook"),
+    path("payment/paystack/initialize/", PaystackInitializePaymentView.as_view(), name="paystack-payment-initialize"),
+    path("payment/paystack/verify/<str:reference>/", PaystackVerifyPaymentView.as_view(), name="paystack-payment-verify"),
 ]

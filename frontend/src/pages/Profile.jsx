@@ -286,7 +286,7 @@ function Profile() {
 
                       <div className="order-header-right">
                         <span className="order-payment-method-tag">
-                          {order.payment_method === "Card" ? "Paystack Card" : (order.payment_method || "Paystack")}
+                          {order.payment_method === "Card" ? "Kora Card" : (order.payment_method || "Kora")}
                         </span>
                         <span className={`order-status-badge ${getStatusBadgeClass(order.status)}`}>
                           ● {order.status}

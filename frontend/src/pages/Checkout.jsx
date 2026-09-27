@@ -74,18 +74,19 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
       const response = await api.post("products/checkout/", orderData);
       console.log("Order created successfully:", response.data);
 
-      setSuccessMsg("Order created! Redirecting to Paystack payment gateway...");
+      setSuccessMsg("Order created! Redirecting to Kora payment gateway...");
       const initRes = await api.post("products/payment/initialize/", {
         amount: cartTotal,
         order_id: response.data?.id,
         callback_url: `${window.location.origin}/payment/success`,
       });
 
-      if (initRes.data && initRes.data.status && initRes.data.data?.authorization_url) {
-        window.location.href = initRes.data.data.authorization_url;
+      const checkoutUrl = initRes.data?.data?.checkout_url || initRes.data?.data?.authorization_url;
+      if (initRes.data && initRes.data.status && checkoutUrl) {
+        window.location.href = checkoutUrl;
         return;
       } else {
-        setErrorMsg(initRes.data?.message || "Failed to initialize Paystack payment. Please try again.");
+        setErrorMsg(initRes.data?.message || "Failed to initialize Kora payment. Please try again.");
         setLoading(false);
         return;
       }
@@ -361,17 +362,18 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
                 {loading ? (
                   <span className="checkout-spinner-wrap">
                     <span className="checkout-spinner"></span>
-                    Connecting to Paystack...
+                    Connecting to Kora...
                   </span>
                 ) : (
                   <span className="checkout-btn-content">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Pay Now via Paystack
+                    Pay Now via Kora
                   </span>
                 )}
               </button>
+
 
               <div className="checkout-trust-badges">
                 <div className="trust-badge-item">

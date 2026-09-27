@@ -23,11 +23,12 @@ function PaymentSuccess({ clearCart }) {
 
       try {
         const response = await api.get(`products/payment/verify/${reference}/`);
-        console.log("Paystack verification response:", response.data);
+        console.log("Kora verification response:", response.data);
 
-        if (response.data?.status && response.data?.data?.status === "success") {
+        const resData = response.data?.data || response.data;
+        if (response.data?.status && (response.data?.data?.status === "success" || response.data?.status === "success")) {
           setSuccess(true);
-          setPaymentData(response.data.data);
+          setPaymentData(resData);
           if (clearCart) clearCart();
         } else {
           setSuccess(false);
@@ -52,8 +53,8 @@ function PaymentSuccess({ clearCart }) {
     verifyPayment();
   }, [params, clearCart]);
 
-  const formattedDate = paymentData?.paid_at || paymentData?.paidAt
-    ? new Date(paymentData.paid_at || paymentData.paidAt).toLocaleString("en-US", {
+  const formattedDate = paymentData?.paid_at || paymentData?.paidAt || paymentData?.created_at
+    ? new Date(paymentData.paid_at || paymentData.paidAt || paymentData.created_at).toLocaleString("en-US", {
         dateStyle: "medium",
         timeStyle: "short",
       })
@@ -69,7 +70,7 @@ function PaymentSuccess({ clearCart }) {
               <div className="checkout-spinner" style={{ width: "40px", height: "40px", borderTopColor: "#3b82f6" }}></div>
             </div>
             <h1 className="payment-success-title">Verifying Payment</h1>
-            <p className="payment-success-subtitle">Please wait while we confirm your transaction details with Paystack...</p>
+            <p className="payment-success-subtitle">Please wait while we confirm your transaction details with Kora...</p>
           </div>
         )}
 
@@ -106,13 +107,15 @@ function PaymentSuccess({ clearCart }) {
 
                   <div className="receipt-row">
                     <span className="receipt-label">Amount Paid</span>
-                    <span className="receipt-value highlight">₦ {(paymentData.amount / 100).toLocaleString()}</span>
+                    <span className="receipt-value highlight">
+                      ₦ {paymentData.amount ? (paymentData.amount > 50000 && paymentData.amount % 100 === 0 ? (paymentData.amount / 100).toLocaleString() : Number(paymentData.amount).toLocaleString()) : "0.00"}
+                    </span>
                   </div>
 
                   <div className="receipt-row">
                     <span className="receipt-label">Payment Channel</span>
                     <span className="receipt-value" style={{ textTransform: "capitalize" }}>
-                      Paystack {paymentData.channel || "Card"}
+                      Kora {paymentData.channel || paymentData.payment_option || "Card / Transfer"}
                     </span>
                   </div>
 
