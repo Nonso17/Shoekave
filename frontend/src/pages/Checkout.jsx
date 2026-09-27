@@ -103,6 +103,13 @@ function Checkout({ cart = [], cartTotal = 0, clearCart }) {
         setLoading(false);
         return;
       }
+    } catch (error) {
+      console.error("Order submission error:", error.response?.data || error.message);
+      const serverErr = error.response?.data?.error || error.response?.data?.detail || "Order submission failed. Please try again.";
+      setSuccessMsg("");
+      setErrorMsg(serverErr);
+      setLoading(false);
+    }
   };
 
   if (!cart || cart.length === 0) {
