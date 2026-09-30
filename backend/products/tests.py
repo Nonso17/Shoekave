@@ -95,6 +95,27 @@ class ProductEndpointsTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "Puma Suede Updated")
 
+    def test_5b_patch_admin_product_stock_sizes(self):
+        url = f"/api/products/admin/products/{self.product.id}/"
+        self.client.force_authenticate(user=self.admin)
+        payload = {
+            "sizes": [
+                {"size": 40, "stock": 3},
+                {"size": 42, "stock": 15},
+                {"size": 45, "stock": 7}
+            ]
+        }
+        response = self.client.patch(url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["stock"], 25)
+
+        ps40 = ProductSize.objects.get(product=self.product, size=40)
+        self.assertEqual(ps40.stock, 3)
+        ps42 = ProductSize.objects.get(product=self.product, size=42)
+        self.assertEqual(ps42.stock, 15)
+        ps45 = ProductSize.objects.get(product=self.product, size=45)
+        self.assertEqual(ps45.stock, 7)
+
     def test_6_delete_admin_product(self):
         temp_product = Product.objects.create(
             name="Temp Product",

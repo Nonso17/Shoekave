@@ -63,7 +63,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     sizes = ProductSizeSerializer(
         many=True,
-        read_only=True
+        required=False
     )
 
     brand = serializers.CharField(
